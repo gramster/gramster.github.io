@@ -7,6 +7,7 @@ category: Math
 author: Graham Wheeler
 comments: enabled
 has_math: yes
+image: /img/740px-TooManyPigeons.jpg
 ---
 
 It happens so often - you go to your section of the gym change room, and
@@ -22,8 +23,6 @@ commonly formulated as a puzzle: how many people do you need to have in
 a room together before the odds are better than even that two share the
 same birthday?
 <!-- TEASER_END -->
-
-<img src="/img/740px-TooManyPigeons.jpg" style="float:left;margin:10px" />
 
 Obviously in a non-leap year, if there are 366 people you are guaranteed
 a matching pair (in the worst case there will be one person for every

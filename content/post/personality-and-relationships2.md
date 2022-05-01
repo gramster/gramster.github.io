@@ -7,11 +7,12 @@ comments: enabled
 tags:
   - Psychology
   - Management
+image: /img/woodman.jpg
 ---
 
-![Photo by Rex Pickar on Unsplash](/img/woodman.jpg)
+<!-- ![Photo by Rex Pickar on Unsplash](/img/woodman.jpg) -->
 
-The [last post](/posts/personality-and-relationships1.html) in this series covered the Five Factor Model of personality. In this post we'll dig into personality patterns that people can exhibit. Everyone has some combination of the five factors, but how does that combination manifest as a personality type?
+The [last post](/post/personality-and-relationships1/) in this series covered the Five Factor Model of personality. In this post we'll dig into personality patterns that people can exhibit. Everyone has some combination of the five factors, but how does that combination manifest as a personality type?
 
 There are many different models of personality types, but one used in psychology and psychoanalysis is the categorization in the [DSM](https://en.wikipedia.org/wiki/Diagnostic_and_Statistical_Manual_of_Mental_Disorders) - the Diagnostic and Statistical Manual of Mental Disorders. This is a [somewhat controversial](https://en.wikipedia.org/w/index.php?title=Diagnostic_and_Statistical_Manual_of_Mental_Disorders&section=15#Criticism) publication that categorizes a number of maladaptive personality categories, and there are schools of thought in psychoanalysis who use similar categories in adaptive forms to describe similar personality types in less extreme forms; the most common forms here are captured in the [Psychodynamic Diagnostic Manual](https://en.wikipedia.org/wiki/Psychodynamic_Diagnostic_Manual#Dimension_I:_Personality_Patterns_and_Disorders).
 

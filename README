@@ -6,10 +6,8 @@ If updating theme, make sure to change layouts/partials/footer.html to include:
 TODO
 - affiliate links
 - RSS icon seems busted
-- Books section
 - More tags
 - publish and push to Github
-- for pages that have image headers (like personality page) replace the forest
 
 
 

@@ -38,7 +38,6 @@ params:
   googleAnalytics: 'UA-67535606-1'
   social:
     rss: true
-    email: graham@grahamwheeler.com
     linkedin: 'https://www.linkedin.com/in/grahamwheeler'
     stackoverflow: 'https://stackoverflow.com/users/968133'
     github: 'https://github.com/gramster'

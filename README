@@ -1,0 +1,15 @@
+If updating theme, make sure to change layouts/partials/footer.html to include:
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+TODO
+- affiliate links
+- RSS icon seems busted
+- Books section
+- More tags
+- publish and push to Github
+- for pages that have image headers (like personality page) replace the forest
+
+
+

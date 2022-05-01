@@ -38,8 +38,7 @@ jobs:
         shell: bash
 
       - name: Convert notebooks
-        run: |
-          for i in notebooks/*.ipynb;do;nb2hugo "$i" --site-dir . --section post;done
+        run: patch/convertnb.sh
         shell: bash
 
       - name: Build

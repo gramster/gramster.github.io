@@ -113,6 +113,11 @@ I will just need to run that every time I change a notebook.
 That's about all that was needed to migrate. I'm pretty happy with the result.
 I expect there will be some rough edges but probably nothing too serious. 
 
+Publishing is a bit more messy. I host using github-pages, and Nikola has a 
+command that will check my sources into one branch and the generated site into 
+another branch and push everything upstream, easy as pie. Hugo doesn't seem 
+to have anything like this so its all a bit of a kludge. I basically followed
+the tutorial [her](https://bwaycer.github.io/hugo_tutorial.hugo/tutorials/github-pages-blog/).
 
 ```
 

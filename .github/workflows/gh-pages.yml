@@ -21,6 +21,7 @@ jobs:
 
       - name: Patch theme
         run: |
+          (cd themes/hugo-theme-cleanwhite; git pull)
           cat patch/footer.html themes/hugo-theme-cleanwhite/layouts/partials/footer.html > footer.html
           mv footer.html themes/hugo-theme-cleanwhite/layouts/partials
           sed -i  's/CATALOG/SECTIONS/' themes/hugo-theme-cleanwhite/layouts/_default/single.html

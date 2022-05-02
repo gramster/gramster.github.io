@@ -14,7 +14,7 @@ More recently, we started accumulating a lot of old issues in Pylance, and becau
 
 I have this working, and in this post wil describe how I am doing it, and show how you can leverage this yourself if you find it useful. Let me start by sharing a typical report:
 
-![](../assets/github-report.png)
+![](/img/github-report.png)
 
 You'll notice that I first distinguish between issues marked as bugs and those not; I think this is a useful separation. There are then several further subsections:
 

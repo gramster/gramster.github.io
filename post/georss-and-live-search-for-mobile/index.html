@@ -1,0 +1,70 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="GeoRSS and Live Search for Mobile"><meta property="og:title" content="GeoRSS and Live Search for Mobile"><meta property="twitter:title" content="GeoRSS and Live Search for Mobile"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>GeoRSS and Live Search for Mobile-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/georss-and-live-search-for-mobile/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>GeoRSS and Live Search for Mobile</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Friday, June 6, 2008</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><p>Hopefully by now you all have v3.0 of the Live Search client, and are
+enjoying the new features (web search, weather, and collections). I&rsquo;d
+like to talk about collections in this post, but first it is worth
+mentioning a couple of changes in this version that are less obvious,
+and overcome limitations I have blogged about in the past:</p><ul><li>we now have Outlook contact integration. From Outlook contacts you
+can select the &ldquo;Show on Map&rdquo; menu option to map a contact. Google
+Maps contacts integration is still broken,
+but we can&rsquo;t let that hold us back any longer; we gave them nearly a
+year as well as explicit instructions on what their bug was; if they
+can&rsquo;t get their house in order with all that then too bad for them.
+If you do want to use both GMM and Live Search, then install GMM
+last. Their bug will cause problems with any other software that
+installs menu extensions that is installed after them; if the other
+apps are well-behaved then you can install them before GMM and you
+should be okay.</li><li>we have put back the ability to enter addresses in the search box.
+We have a better geocoder now on the back end and are more confident
+that you will get the results you want when doing this.</li></ul><p>Okay, on to GeoRSS. This was my pet feature that I originally built in
+September 2006 and it finally got shipped (and if you say &lsquo;about time!&rsquo;
+then I have the names of the two people who kept trying to kill this to
+give to you; go blame them ;-))</p><p><a href=/img/georss-image0.png><img src=/img/georss-image0.png alt=image></a></p><p>The Collections feature is built around Virtual Earth collections, to
+make it easier for people who don&rsquo;t know/care about GeoRSS to use the
+feature and get some value out of it. For the more hard-core, you can
+enter GeoRSS URLs directly:</p><p><a href=/img/georss-image1.png><img src=/img/georss-image1.png alt=image></a></p><p>The actual collections/feeds are stored in the application directory in
+a file called feeds.xml. You may find it instructive to look at that
+file.</p><p>The cool thing about the URLs is that they can contain metatokens, which
+will expand to location-specific values:</p><p><a href=/img/georss-image2.png><img src=/img/georss-image2.png alt=image></a></p><p>For example, the URL above:</p><p><a href=http://www.homethinking.com/georss/@StateAbbrev@/@City@>http://www.homethinking.com/georss/@StateAbbrev@/@City@</a></p><p>has two such metatokens, namely @StateAbbrev@ and @City@. These will get
+converted into appropriate values based on your search location before
+the feed is fetched.</p><p>The supported metatokens are:</p><ul><li>@StateName@ - state name, e.g. &ldquo;Washington&rdquo;</li><li>@StateAbbrev@ - state name abbrevaited form e.g. &ldquo;WA&rdquo; (outside the
+USA this will be the same as @StateName@)</li><li>@City@ - city name</li><li>@Zip@ - zip or postal code</li><li>@Location@ - the full text shown in the main view for the current
+location</li><li>@Latitude@, @Longitude@</li><li>@StartLocation@, @StartLatitude@, @StartLongitude@, @EndLocation@,
+@EndLatitude@, @EndLongitude@ - similar to @Location@ etc but for
+the start and end points of the last route you calculated. The idea
+being you could pass these up to a transit service to get, for
+example, a bus schedule</li><li>@MyLatitude@, @MyLongitude@, @MyLocationTime@ - the location and
+time (in UTC) of the last GPS fix</li></ul><p>In a later post I&rsquo;ll describe the GeoRSS schema that the client
+understands (it is a hybrid of GeoRSS, some Yahoo extensions, some KML
+and some OASIS xADR address stuff). For now I&rsquo;ll just mention one
+interesting extension, namely pushpinurl, which can point to a .ico
+file. This file will be used as the pushpin icon on the map for that
+result. This can allow you to make custom pushpins.</p><hr><ul class=pager><li class=previous><a href=/post/cute-math-curiosity/ data-toggle=tooltip data-placement=top title="Cute Math Curiosity">&larr;
+Previous Post</a></li><li class=next><a href=/post/fixing-grub-after-installing-windows-7/ data-toggle=tooltip data-placement=top title="Fixing Grub after installing Windows 7">Next
+Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramw.github.io issue-term=title theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(i,t){var n=document,s="script",e=n.createElement(s),o=n.getElementsByTagName(s)[0];e.src=i,t&&e.addEventListener("load",function(e){t(null,e)},!1),o.parentNode.insertBefore(e,o)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,r=$(_containerSelector),a=r.find("h1,h2,h3,h4,h5,h6");return $(e).html(''),a.each(function(){n=$(this).prop("tagName").toLowerCase(),i="#"+$(this).prop("id"),s=$(this).text(),t=$('<a href="'+i+'" rel="nofollow">'+s+"</a>"),o=$('<li class="'+n+'_nav"></li>').append(t),$(e).append(o)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

@@ -1,0 +1,107 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="Building a Zite Replacement (Part 7)"><meta property="og:title" content="Building a Zite Replacement (Part 7)"><meta property="twitter:title" content="Building a Zite Replacement (Part 7)"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>Building a Zite Replacement (Part 7)-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/zite-replacement-7/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>Building a Zite Replacement (Part 7)</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Sunday, October 4, 2015</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><p>It&rsquo;s been a while since the last post but I haven&rsquo;t been idle. Here are some of the things I&rsquo;ve been up to:</p><ul><li>tweaking the code to parse content better</li><li>moving from IPython notebook to a library that I can use to do batch operations as well as interactive exploration modifying the code do do parallel fetches - or more precisely, to operate asynchronously; because of the Python GIL I still have just one thread for now. But I can kick off up to 40 HTTP requests at a time which speeds things up a lot, as I have about 4000 sites I&rsquo;m working with now;</li><li>exploring the <a href=http://textblob.readthedocs.org/en/dev/>TextBlob library</a>, a library that sits above the <a href=http://www.nltk.org/>Python NLTK</a> and can parse sentences and words (more on that below)</li><li>building a GUI application with <a href=https://wiki.python.org/moin/TkInter>Tkinter</a> that lets me quickly view feeds, terms, categories and articles, delete feeds, tweak category examplars and see the results, and so on. This has been invaluable in building up and fine tuning my category examplars, although it is still a work in progress. It&rsquo;s been somewhat painful as I haven&rsquo;t used Tk in about two decades but I&rsquo;ve mostly got it to do what I want.</li></ul><p>You can see a screenshot of the GUI below to get an idea of what it looks like:</p><p><a href=/img/feedme_screenshot.png><figure><img src=/img/feedme_screenshot.png alt="feedme app screenshot">
+<center><figcaption>feedme app screenshot</figcaption></center></figure></a></p><p>This is meant just for my use so its functional rather than polished.</p><p>The TextBlob library is worth investigating if you are considering doing anything like this. In the end I abandoned it because the code I have written for parsing sentences and words is almost as good and about an order of magnitude faster. But I will show the code I experimented with so you can see how easy it is to use. Below is the code for getting the term counts for an article downloaded with feedparser. Note that I still handle correcting the capitalization of initial words in sentences, and I use my own logic for extracting noun phrases; TextBlob has code for that but it is seemingly not very good. The key thing is to note that I don&rsquo;t have to do much at all to get at sentences and then at words within sentences:</p><pre><code>#!python
+from textblob import TextBlob
+
+def get_article_terms(title, article, dictionary, stop_words):
+    blob = TextBlob(title +'. ' + strip_tags(article))
+    terms = []
+    for sentence in blob.sentences:
+        first = True
+        noun_phrase = []
+        for word in sentence.words:
+            if first:
+                first = False
+                if word not in dictionary and \
+                    word.lower() in dictionary:
+                    word = word.lower()
+            if word[0].isupper():
+                noun_phrase.append(word)
+            else:
+                if len(noun_phrase):
+                    terms.append(' '.join(noun_phrase))
+                    noun_phrase = []
+                if word not in stop_words:
+                    terms.append(word)
+        if len(noun_phrase):
+            terms.append(' '.join(noun_phrase))
+    term_counts = collections.Counter()
+    term_counts.update(terms)
+    return term_counts, len(terms)
+</code></pre><p>Anyway, as I say, this works but it is slow and I have a much faster version:</p><pre><code>#!python
+def get_article_terms(title, article, dictionary, stop_words):
+    &quot;&quot;&quot; Get the terms and counts from an article. Strip HTML tags and
+    non-essential punctuation, whitespace, and single
+    character 'words' like s that may come from punctuation removal.
+    Try normalize initial letter case using the supplied dictionary.
+    Remove stop words, and return a set of words and counts and a total count.
+    &quot;&quot;&quot;
+    article = title + '. ' + strip_tags(article)
+    # replace non-ASCII chars with space. We keep '-', '.', ',', '\''.
+    article = re.sub(r'[^A-Za-z0-9\.,\-\']+',' ', article)
+    # Split on '.' and check first words to see if they should be lower-cased.
+    sentences = article.split('.')
+    article = ''
+    for sentence in sentences:
+        words = [w for w in sentence.split(' ') if len(w)]
+        if len(words):
+            if words[0] not in dictionary and words[0].lower() in dictionary:
+                words[0] = words[0].lower()
+        words.append(',')
+        article += ' '.join(words)
+
+    # Look for consecutive sequences of capitalized words with no intervening
+    # punctuation other than '-' and turn them into single terms with '_'
+    # replacing space so we can temporariliy treat noun phrases as single words.
+    sentences = article.split(',')
+    article = ''
+    for sentence in sentences:
+        words = [w for w in sentence.split(' ') if len(w)]
+        for i in range(0, len(words) - 1):
+            if words[i][0].isupper() and words[i + 1][0].isupper() and words[i] != 'I' \
+                and words[i+1] != 'I':
+                words[i + 1] = words[i] + '_' + words[i + 1]
+                words[i] = ''
+        words.append(' ')
+        article += ' '.join(words)
+
+    # replace non-ASCII chars with space. We keep '-' and underscore.
+    article = re.sub(r'[^A-Za-z0-9\-_\']+',' ', article)
+    # Get the non-empty words that aren't stop words, and while
+    # we are at it, fix up underscores in noun phrases.
+    terms = [term.replace('_', ' ') for term in article.split(' ') if len(term) \
+        and term not in stop_words]
+
+    term_counts = collections.Counter()
+    term_counts.update(terms)
+    return term_counts, len(terms)
+</code></pre><p>The next step for me is to start using my category examplars to categorize new articles on a daily basis so I have a manageable quantity I can sanity check. With a bit more tuning I want to build a simple web front end to this so I can open it up for others to try and provide feedback. Watch this space!</p><hr><ul class=pager><li class=previous><a href=/post/zite-replacement-6/ data-toggle=tooltip data-placement=top title="Building a Zite Replacement (Part 6)">&larr;
+Previous Post</a></li><li class=next><a href=/post/node-npm-express/ data-toggle=tooltip data-placement=top title="Node, npm and Express">Next
+Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramw.github.io issue-term=title theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(i,t){var n=document,s="script",e=n.createElement(s),o=n.getElementsByTagName(s)[0];e.src=i,t&&e.addEventListener("load",function(e){t(null,e)},!1),o.parentNode.insertBefore(e,o)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,r=$(_containerSelector),a=r.find("h1,h2,h3,h4,h5,h6");return $(e).html(''),a.each(function(){n=$(this).prop("tagName").toLowerCase(),i="#"+$(this).prop("id"),s=$(this).text(),t=$('<a href="'+i+'" rel="nofollow">'+s+"</a>"),o=$('<li class="'+n+'_nav"></li>').append(t),$(e).append(o)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

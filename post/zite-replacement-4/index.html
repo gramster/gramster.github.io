@@ -1,0 +1,124 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="Building a Zite Replacement (Part 4)"><meta property="og:title" content="Building a Zite Replacement (Part 4)"><meta property="twitter:title" content="Building a Zite Replacement (Part 4)"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>Building a Zite Replacement (Part 4)-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/zite-replacement-4/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>Building a Zite Replacement (Part 4)</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Tuesday, September 22, 2015</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><p>Following my <a href=http://www.grahamwheeler.com/posts/zite-replacement-3.html>last post</a>, I started gathering URLs of feeds to use for sample data. First I scraped the links that I had saved in Pocket (a scarily large number). It didn&rsquo;t seem like Pocket had an easy way to export this, so I loaded up Pocket in Chrome, scrolled and scrolled and scrolled until I could scroll no more, then saved the resulting web page once it was done loading. It was pretty easy to then scrape that to get the links. After sorting and uniq-ing those, and running them through <a href=http://www.aaronsw.com/2002/feedfinder/>feedfinder</a>, I had somewhere north of 1000 feeds. However, these were very skewed to my interests and I wanted diversity so I pressed on and scraped a bunch of blog rolls and other link collections covering many other areas. In the end I got about 2,500 feed URLs to start with, in a file named &lsquo;feeds.txt&rsquo;.</p><p>At that point I ran the code below to fetch and categorize the articles.</p><pre><code>#!python
+import datetime
+import json
+
+with open('feeds.txt') as f:
+    feeds = f.readlines()
+    
+with open('articles.txt', 'w') as f:
+    for feed in feeds:
+        feed = feed.strip()
+        if len(feed) == 0:
+            continue
+        print feed
+        when = datetime.datetime.utcnow()
+        articles = get_feed_with_tf_idf(feed)
+        print '%d articles processed from feed %s' % (len(articles), feed)
+        for article in articles:
+            record = {'feed': feed, 
+                      'fetched': str(when),
+                      'category': article['category'],
+                      'link': article['link'], 
+                      'date': article['date'],
+                      'terms': article['terms'],
+                      'title': article['title'],
+                      'thumbnail': article['media_thumbnail']
+            }
+            f.write(json.dumps(record))
+            f.write('\n')
+</code></pre><p>It ran surprisingly fast; it actually took a lot longer to find the feed URLs than it did to fetch the articles and do term extraction. A number of sites returned 0 articles and I need to do prune of those from the feed list as they are probably either dead or uninteresting.</p><p>Once that was done I had close to 40,000 articles to work with. A simple approach is to not even bother going further and just use the extracted terms for deciding what articles to show. I could probably get pretty good results this way; for example, where Zite would typically give me about ten articles on Clojure, I already have over 200! But I&rsquo;d like to press on and do some clustering and use that for higher-level tagging and eventually supervised learning.</p><p>For clustering we need some way of measuring <a href=https://en.wikipedia.org/wiki/Similarity_measure>similarity</a>
+between articles (or conversely, distance). For <a href=https://en.wikipedia.org/wiki/Categorical_variable>categorical data</a>
+(as opposed to quantitative data), like our lists of terms, a simple but highly effective measure is
+<a href=https://en.wikipedia.org/wiki/Jaccard_index>Jacard similarity</a>, which is the size of the intersection
+of our list of terms divided by the size of the union. For example, if one document had the terms &lsquo;Obama&rsquo;, &lsquo;president&rsquo;, &lsquo;visit&rsquo;, and the other had the terms &lsquo;Trump&rsquo;, &lsquo;president&rsquo;, &lsquo;campaign&rsquo;, &lsquo;Fiorina&rsquo;, then the Jacard similarity of these documents would be 2/6. The Jacard distance is just 1 - the similarity. Some algorithms work with similarities and some with distances so it is useful to know how to compute both. For points in n-dimensional space, for example, distance is usually Euclidean distance (the square root of the sum of the squares of the distances on each axis), while similarity would be 1/distance, or some other value that increases as distance decreases; we want to avoid division by zero so 1 / (1 + distance) is more common.</p><p>Calculating the Jacard similarity of all the pairwise combinations of nearly 40,000 items is no mean feat, and to make this tractable in an interpreted language like Python you have to leverage libraries that have efficient native implementations under the hood very effectively. I found the code below not too bad; it took about 20 minutes on my MacBook Pro:</p><pre><code>#!python
+import itertools
+import numpy
+
+import json
+
+items = []
+
+# Load the articles back in.
+with open('articles.txt') as f:
+    # We will add line number info in for easy cross reference.
+    linenum = 0
+    for line in f.readlines():
+        linenum += 1
+        try:
+            d = json.loads(line.strip())
+        except ValueError as ve:
+            print &quot;Failed to parse line %d: %s: %s&quot; % (linenum, line, ve)
+        # Drop any that have no terms.
+        if len(d['terms']) == 0:
+            continue
+        items.append({'feed': d['feed'], 
+                     'line': linenum,
+                     'title': d['title'],
+                     'terms': set(d['terms'])})
+
+
+def jacard_similarity(row1, row2):
+    &quot;&quot;&quot; Jacard similarity is the size of the intersection divided by the union.
+    &quot;&quot;&quot;
+    set1 = row1['terms']
+    set2 = row2['terms']
+    intersection_len = float(len(set1.intersection(set2)))
+    union_len = float(len(set1) + len(set2) - intersection_len)
+    
+    return intersection_len / union_len
+
+# Compute the pairwise distance matrix. We do the upper triangle.
+similarity_generator = (jacard_similarity(row1, row2) \
+    for row1, row2 in itertools.combinations(items, r=2))
+upper_triangle = numpy.fromiter(similarity_generator, dtype=numpy.float64)
+</code></pre><p>This computes the upper triangle, and we would need to make a reflection around the diagonal to complete a square matrix. Note how we leverage Python sets for efficient calculation of union and intersection, and use itertools instead of explicit loops. To complete the matrix we can do this:</p><pre><code>#!python
+import scipy.spatial
+# Expand to a square
+distance_matrix = scipy.spatial.distance.squareform(upper_triangle)
+</code></pre><p>Once we have this matrix we can use it for our clustering. The approach I am interested in trying is <a href=https://en.wikipedia.org/wiki/Affinity_propagation>affinity propagation</a>. The implementation in SciKit can use a precomputed similarity matrix and apparently its a very good algorithm for finding optimal clusters, but it is quadratic so computing clusters will be slow.</p><p>The code to compute the clusters is below:</p><pre><code>#!python
+from sklearn.cluster import AffinityPropagation
+
+af = AffinityPropagation(affinity='precomputed').fit(distance_matrix)
+
+cluster_centers_indices = af.cluster_centers_indices_
+labels = af.labels_
+
+n_clusters_ = len(cluster_centers_indices)
+
+for k in range(n_clusters_):
+    print(&quot;Cluster %d\n&quot; % k)
+    for n in xrange(len(items)):
+        if labels[n] == k:
+            print(items[n])
+</code></pre><p>Starting with smaller samples, for 1000 articles I got about 160 clusters; for 2000 about 290, and for 3000, 410.
+Some of the clusters make sense (e.g. I see some recipes being clustered) but a lot don&rsquo;t. I expect there are three reasons for this: the small sample across diverse topics mean lots of articles have no common terms, possibly I need more terms, the algorithm is running with all defaults and hasn&rsquo;t been tuned, and of course it is possible I have bugs; I have not validated the Jacard values. So I will need to go deeper. Amongst other things I think I should drop any terms that only occur in single documents as they add cost but no benefit; I found that there are only about 20% of the terms that actually occur in two or more documents.</p><p>Watch this space!</p><hr><ul class=pager><li class=previous><a href=/post/zite-replacement-3/ data-toggle=tooltip data-placement=top title="Building a Zite Replacement (Part 3)">&larr;
+Previous Post</a></li><li class=next><a href=/post/zite-replacement-5/ data-toggle=tooltip data-placement=top title="Building a Zite Replacement (Part 5)">Next
+Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramw.github.io issue-term=title theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(i,t){var n=document,s="script",e=n.createElement(s),o=n.getElementsByTagName(s)[0];e.src=i,t&&e.addEventListener("load",function(e){t(null,e)},!1),o.parentNode.insertBefore(e,o)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,r=$(_containerSelector),a=r.find("h1,h2,h3,h4,h5,h6");return $(e).html(''),a.each(function(){n=$(this).prop("tagName").toLowerCase(),i="#"+$(this).prop("id"),s=$(this).text(),t=$('<a href="'+i+'" rel="nofollow">'+s+"</a>"),o=$('<li class="'+n+'_nav"></li>').append(t),$(e).append(o)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

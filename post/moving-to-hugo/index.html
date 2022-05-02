@@ -1,0 +1,92 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="Moving my blog to Hugo"><meta property="og:title" content="Moving my blog to Hugo"><meta property="twitter:title" content="Moving my blog to Hugo"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>Moving my blog to Hugo-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/moving-to-hugo/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>Moving my blog to Hugo</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Saturday, April 30, 2022</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><p>I have been using Nikola for about the past 8 years for my blog, but have been
+eyeing the development of Hugo and thinking I might want to migrate, and have
+finally done it. There&rsquo;s nothing wrong with Nikola; I think it&rsquo;s actually less
+work than Hugo because it handles <code>.ipynb</code> Jupyter notebooks very seamlessly,
+but Hugo is super-fast so you can work in a &rsquo;live-releoad&rsquo; mode which I like.
+So this weekend I finally did it. I didn&rsquo;t take notes as I went, but I think
+I can reconstruct what I did feairly easily:</p><p>First I installed Hugo:</p><pre tabindex=0><code>brew install hugo
+</code></pre><p>Then I created a new site:</p><pre tabindex=0><code>hugo new site grahamwheeler --format yaml
+cd grahamwheeler
+git init .
+</code></pre><p>I decided to use YAML as I am familiar with it, unlike TOML, and I think it is
+trivial to change later.</p><p>I then looked at the themes on <a href=https://themes.gohugo.io/>https://themes.gohugo.io/</a>. There are way too
+many options, but it seems it is fairly easy to switch later, so I picked
+<a href=https://themes.gohugo.io/themes/hugo-theme-cleanwhite/>Clean White</a> as
+I liked the simple look and it had most of what I wanted. I added it with:</p><pre tabindex=0><code>cd themes
+git clone https://github.com/zhaohuabing/hugo-theme-cleanwhite.git
+</code></pre><p>Then I took the sample config at `hugo-theme-cleanwhite/exampleSite/config.toml&rsquo; and converted it to YAML with an online converter, and edited it to fit my
+settings, putting the result in the top level directory. At this point I could
+run:</p><pre tabindex=0><code>hugo serve
+</code></pre><p>and see my basic site.</p><p>Next I copied over my old posts to the <code>content/post</code> folder. They already had
+YAML front matter and most of that was compatible with what Hugo uses. I did
+have to clean up the date fields to put them in either yyyy-mm-dd or
+yyyy-mm-ddThh:mm:ss format, as Hugo seems much more fussy than Nikola when
+it comes to date parsing. Also, Nikola used <code>status: draft</code> for yet-to-be-published
+drafts, while Hugo uses <code>draft: true</code>.</p><p>I also copied over my image files to the <code>static/img</code> folder. I had to change
+all the image URL references to be have an `/img/&rsquo; prefix for Hugo to find them.
+But at this point I already has a largely working site.</p><p>I did use Kramdown&rsquo;s CSS customization on a lot of my images, to make them float
+left or right so text would wrap around them.
+That isn&rsquo;t supported by the Markdown system Hugo uses, so I
+changed a bunch of image references to plain HTML img elements with style
+attributes.</p><p>I also use MathJax quite frequently. That wasn&rsquo;t working, but the fix was quite
+simple; in the theme folder I needed to edit <code>layouts/partial/footer.html</code>,
+and add:</p><pre tabindex=0><code>&lt;script type=&#34;text/javascript&#34; src=&#34;https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML&#34;&gt;
+&lt;/script&gt;
+</code></pre><p>In the same file,, immediately afterwards, I also added the script tag for
+utterances, which I use for comments now (recently moved from Disqus):</p><pre tabindex=0><code>&lt;script src=&#34;https://utteranc.es/client.js&#34;
+        repo=&#34;gramster/gramw.github.io&#34;
+        issue-term=&#34;title&#34;
+        theme=&#34;github-light&#34;
+        crossorigin=&#34;anonymous&#34;
+        async&gt;
+&lt;/script&gt;
+</code></pre><p>Some of my posts are in the form of Jupyter notebooks. Those were a bit more
+work with Hugo. Nikola is notebook-aware and does the processing itself, but
+Hugo does not. I found a wrapper around <code>nbconvert</code>, <a href=https://github.com/vlunot/nb2hugo/>nb2hugo</a> which does a decent job. In Nikola the front matter went into
+separate <code>.meta</code> files; I had to inline that as an initial cell in the notebooks
+and change the format to TOML (this inconsistency will likely drive me to use
+TOML everywhere soon). For now the process of coverting the notebooks is manual
+which isn&rsquo;t ideal but doesn&rsquo;t need to happen too often. I put all the notebooks
+in a folder named <code>notebooks</code>, and created a script in the same folder called
+<code>convert.sh</code>, with the contents:</p><pre tabindex=0><code>#!/bin/bash
+
+for i in *.ipynb
+do
+    nb2hugo &#34;$i&#34; --site-dir .. --section post
+done
+</code></pre><p>I will just need to run that every time I change a notebook.</p><p>That&rsquo;s about all that was needed to migrate. I&rsquo;m pretty happy with the result.
+I expect there will be some rough edges but probably nothing too serious.</p><p>Publishing is a bit more messy. I host using github-pages, and Nikola has a
+command that will check my sources into one branch and the generated site into
+another branch and push everything upstream, easy as pie. Hugo doesn&rsquo;t seem
+to have anything like this so its all a bit of a kludge. I basically followed
+the tutorial <a href=https://bwaycer.github.io/hugo_tutorial.hugo/tutorials/github-pages-blog/>her</a>.</p><pre tabindex=0><code></code></pre><hr><ul class=pager><li class=previous><a href=/post/unit-tests-that-dont-suck/ data-toggle=tooltip data-placement=top title="Unit Tests that Don't Suck">&larr;
+Previous Post</a></li><li class=next><a href=/post/github-reports/ data-toggle=tooltip data-placement=top title="Github reports for backlog management">Next
+Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramw.github.io issue-term=title theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(i,t){var n=document,s="script",e=n.createElement(s),o=n.getElementsByTagName(s)[0];e.src=i,t&&e.addEventListener("load",function(e){t(null,e)},!1),o.parentNode.insertBefore(e,o)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,r=$(_containerSelector),a=r.find("h1,h2,h3,h4,h5,h6");return $(e).html(''),a.each(function(){n=$(this).prop("tagName").toLowerCase(),i="#"+$(this).prop("id"),s=$(this).text(),t=$('<a href="'+i+'" rel="nofollow">'+s+"</a>"),o=$('<li class="'+n+'_nav"></li>').append(t),$(e).append(o)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

@@ -1,0 +1,306 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="Building a Zite Replacement (Part 5)"><meta property="og:title" content="Building a Zite Replacement (Part 5)"><meta property="twitter:title" content="Building a Zite Replacement (Part 5)"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>Building a Zite Replacement (Part 5)-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/zite-replacement-5/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>Building a Zite Replacement (Part 5)</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Wednesday, September 23, 2015</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><p>My initial experience with clustering was somewhat disappointing. Its clear I need to do some tuning of the approach. The first thing I did was to rerun the article download process, but instead of just keeping the top ten terms and dropping their TF-IDF values, I kept them all. I think there are better ways to select the terms to use for Jacard similarity.</p><p>For starters, using a fixed number of terms could lead to keeping a wildly different range of TF-IDF values for different articles. It makes more sense to have some threshold value and keep all terms that exceed the threshold. That may mean more than ten terms for some articles and less for others.</p><p>Secondly, there is not much point in keeping terms that only appear in a single article. That term may be useful if we search articles based on terms, but it will not help much in computing Jacard distances. Some caution is needed here - dropping these terms does reduce the size of the term set and thus will reduce the union with any other article&rsquo;s term set, thus boosting the similarity that the first article has with all other articles. But as this gets boosted across the board, I don&rsquo;t expect it to be much of an issue.</p><p>Finally, it may not be a bad idea to create some &lsquo;fake&rsquo; term sets that can act as cluster centroids. I.e. for some topic, create a term set of terms that are particularly relevant and if possible unique to that topic. Using these as centroids we could simply assign each article to the closest centroid which is a straightforward task. Furthermore, we don&rsquo;t have to compute the $n ^ 2$ matrix of distances; if we have $m$ centroids we need only compute $n \times m$ distances, and if $m$ is fixed we essentially have a linear scaling approach.</p><p>In order to do this, it is a reasonable idea to take the full set of terms that occur at least $k$ times for some chosen value $k$, assign each of these terms one or more topics, and then pivot that so each topic has a set of terms, which becomes a pseudo-article and the centroid for that topic.</p><p>Below is the code I am now using to get the articles:</p><pre><code>#!python
+import datetime
+import json
+import math
+import operator
+import collections
+from collections import defaultdict
+import feedparser
+import re
+import string 
+import csv
+
+# A simple tag stripper
+from HTMLParser import HTMLParser
+
+class MLStripper(HTMLParser):
+    def __init__(self):
+        self.reset()
+        self.fed = []
+    def handle_data(self, d):
+        self.fed.append(d)
+    def get_data(self):
+        return ''.join(self.fed)
+
+def strip_tags(html):
+    s = MLStripper()
+    s.feed(html)
+    return s.get_data()
+
+# Get the word frequencies for top 5000 words
+# You can get this list here: http://www.wordfrequency.info/free.asp
+# I cannot redistribute it so get your own copy to follow along.
+
+words5000 = {}
+total = 0
+count = 0
+top_words = []
+with open('freq5000.csv', 'rb') as f:
+    reader = csv.reader(f)
+    total = 0
+    for row in reader:
+        if row[3] == '' or row[3][0] &gt; '9':
+            continue
+        v = int(row[3])
+        word = row[1].encode('ascii', 'ignore')
+        count += 1
+        if count &lt;= 500:
+            top_words.append(word)
+        words5000[word] = v
+        total += v
+
+total = float(total)
+min_words5000_freq = total
+for word in words5000.keys():
+    words5000[word] /= total
+    if min_words5000_freq &gt; words5000[word]:
+        min_words5000_freq = words5000[word]
+
+def get_article_terms(title, article):
+    &quot;&quot;&quot;
+    Get the terms and counts from an article. Strip HTML tags and
+    non-essential punctuation, whitespace, and single
+    character 'words' like s that may come from punctuation removal.
+    Try normalize initial letter case using the 5000 word dictionary.
+    Return a set of words and counts and a total count.
+    &quot;&quot;&quot;
+    terms = defaultdict(int)
+    total = 0
+    article = title + '. ' + strip_tags(article)
+    # replace non-ASCII chars with space. We keep '-', '.', ',', '\''.
+    article = re.sub(r'[^A-Za-z0-9\.,\-\']+',' ', article)
+    # replace 's with space and remove other single quotes.
+    # We do want to preserve *n't and maybe others so switch those
+    # to &quot; and back before/after
+    article = string.replace(article, &quot;'s &quot;, &quot; &quot;)\
+                    .replace(&quot;n't&quot;, 'n&quot;t')\
+                    .replace(&quot;'&quot;, &quot;,&quot;)\
+                    .replace('n&quot;t', &quot;n't&quot;)
+    # Split on '.' and check first words to see if they should be lower-cased.
+    sentences = article.split('.')
+    article = ''
+    for sentence in sentences:
+        words = [w for w in sentence.split(' ') if len(w)]
+        if word[0].lower() in words5000:
+            word[0] = word[0].lower()
+        words.append(',')
+        article += ' '.join(words)
+        
+    # Look for consecutive sequences of capitalized words with no 
+    # intervening punctuation other than '-' and turn them into
+    # single terms with '_' replacing space.
+    sentences = article.split(',')
+    article = ''
+    for sentence in sentences:
+        words = [w for w in sentence.split(' ') if len(w)]
+        for i in range(0, len(words) - 1):
+            if words[i][0].isupper() and words[i + 1][0].isupper():
+                words[i + 1] = words[i] + '_' + words[i + 1]
+                words[i] = ''
+        words.append(' ')
+        article += ' '.join(words)                
+        
+    # replace non-ASCII chars with space. We keep '-' and underscore.
+    article = re.sub(r'[^A-Za-z0-9\-_\']+',' ', article)
+    # We could use a Counter here but the would need to post-process 
+    # the keys to remove the bogus ones and correct capitalization.
+    # Consider for later.
+    for term in article.split(' '):
+        if len(term) &lt; 2 and (term != 'a' or term == 'I'):
+            continue
+        total += 1
+        if term in top_words or \
+            (term[0].isupper() and term.lower() in top_words):
+            continue
+        # Update the count.
+           terms[term] += 1
+
+    return terms, total
+
+
+def get_article_data(feed_url):
+    &quot;&quot;&quot;
+    Calculate the term counts for each article in a feed as well as
+    the document counts for each term. Return a list of article 
+    metadata including the title, a snippet, the distinct terms and 
+    their counts, etc, as well as the counts of how many documents 
+    each term appeared in.
+    &quot;&quot;&quot;
+    
+    d = feedparser.parse(feed_url)
+
+    doc_terms = collections.Counter()
+    articles = []
+
+    entries = d['entries']
+    for entry in entries:
+        title = entry.get('title', None)
+        if title is None:
+            continue
+        
+        # For some sites seem we get summary and some content
+        summary = entry.get('summary', None)
+        content = entry.get('content', None)
+        article = summary if content is None else content
+        if article is None:
+            continue
+        if isinstance(article, list):
+            # Maybe concantenate them? Dig into this; it may be 
+            # multi-language or something.
+            article = article[0]  
+        if isinstance(article, dict):
+            article = article['value']
+    
+        terms, count = get_article_terms(title, article)
+        doc_terms.update(terms.keys())
+        articles.append({'title': title, 
+                         'category': entry.get('category', None),
+                         'guid': entry.get('guid', None),
+                         'terms': terms, 
+                         'count': count, 
+                         'link': entry.get('link', None),
+                         'media_thumbnail': entry.get('media_thumbnail', None),
+                         'date': entry.get('published', None)})
+    return articles, doc_terms
+
+
+def get_feed_with_tf_idf(feed_url, top_term_count=15):
+    &quot;&quot;&quot; Calculate TF-IDFs for each article in a feed &quot;&quot;&quot;
+    articles, doc_terms = get_article_data(feed_url)
+    for article in articles:
+        terms = article['terms']
+        tf_idf = {}
+        article_count = float(article['count'])
+        for term, count in terms.items():
+            tf_idf[term] = (count / article_count) * \
+                math.log(len(articles) / float(doc_terms[term]))
+        article['tf_idf'] = [{term.replace('_', ' '): weight} \
+            for term, weight in tf_idf.items()]
+    return articles
+ 
+# Read the list of feed URLs
+with open('feeds.txt') as f:
+    feeds = f.readlines()
+    
+# Get the articles for each feed, process them and save them 
+# as JSON to a file.
+with open('articles.txt', 'w') as f:
+    for feed in feeds:
+        feed = feed.strip()
+        if len(feed) == 0:
+            continue
+        print feed
+        when = datetime.datetime.utcnow()
+        articles = get_feed_with_tf_idf(feed)
+        print '%d articles processed from feed %s' % (len(articles), feed)
+        for article in articles:
+            record = {'feed': feed, 
+                      'fetched': str(when),
+                      'category': article['category'],
+                      'link': article['link'], 
+                      'date': article['date'],
+                      'terms': article['terms'],
+                      'tf_idf': article['tf_idf'],
+                      'title': article['title'],
+                      'thumbnail': article['media_thumbnail']
+            }
+            f.write(json.dumps(record))
+            f.write('\n')
+</code></pre><p>There have been some improvements since part two, especially in the handing of commas and periods, capitalization correction, etc.</p><p>So, let&rsquo;s start by counting the number of times each term occurs in a document. This was already done for computing TF-IDF but the information wasn&rsquo;t saved but its easy to get again.</p><pre><code>#!python
+import json
+from collections import defaultdict
+import operator
+
+terms = defaultdict(int)
+
+with open('articles.txt') as f:
+    linenum = 0
+    for line in f.readlines():
+        linenum += 1
+        try:
+            d = json.loads(line.strip())
+        except ValueError as ve:
+            print &quot;Failed to parse line %d: %s: %s&quot; % (linenum, line, ve)
+        for t in d['terms']:
+            terms[t] += 1
+
+# Drop all terms with an incidence less than 4
+for t in list(terms.keys()):
+    if terms[t] &lt; 4:
+        del terms[t]
+
+ranked = sorted(terms.items(), key=operator.itemgetter(1), reverse=True)
+</code></pre><p>The top terms I got out of this are &lsquo;is&rsquo; and &lsquo;are&rsquo;, so its clear that the top_words list could do with some more stop words, but that doesn&rsquo;t really matter. I put together a new list of about 700 stop words I will use in future, and filter those out below:</p><pre><code>#!python
+with open('stopwords.txt') as f:
+    stopwords = [l.strip() for l in f.readlines()]
+
+for t in list(terms.keys()):
+    if t in stopwords:
+        del terms[t]    
+    
+ranked = sorted(terms.items(), key=operator.itemgetter(1), reverse=True)
+</code></pre><p>That still leaves me with about 50,000 terms, with about 25% of that being terms that occur 4 or 5 times only. There are some interesting terms in there but clearly it would be costly to deal with that many. Sticking with capitalized terms cuts things down to about 15000. This would still be a lot of work to categorize so I think its time to take a different tack and try using gensim. My hope is that gensim can do better clustering than I got with affinity propagation and I can use the results to in turn extract the initial category term sets. Let&rsquo;s see what it can do. The code below will use Latent Dirichlet Allocation to cluster the articles into 200 clusters. First we need to turn our articles into term lists expanded out by term count (so if &lsquo;recipe&rsquo; appears four times we need to make four copies; it is unfortunate that gensim will turn that back into a bag but doesn&rsquo;t seem to be able to take an existing bag as input).</p><pre><code>#!python
+stoplist = set(stopwords)
+
+documents = []
+with open('articles.txt') as f:
+    linenum = 0
+    for line in f.readlines():
+        linenum += 1
+        try:
+            d = json.loads(line.strip())
+        except ValueError as ve:
+            print &quot;Failed to parse line %d: %s: %s&quot; % (linenum, line, ve)
+        terms = []
+        for k, v in d['terms'].items():
+            if v &gt; 1 and k not in stoplist:
+                terms.extend([k] * v)
+        documents.append(terms)
+</code></pre><p>Next we get gensim to create a sparse matrix model of the corpus and do LDA:</p><pre><code>#!python
+from gensim import corpora, models, similarities
+
+dictionary = corpora.Dictionary(documents)
+dictionary.save('articles.dict') 
+
+corpus = [dictionary.doc2bow(text) for text in documents]
+corpora.MmCorpus.serialize('article.mm', corpus)
+
+# extract 200 LDA topics, using 1 pass and updating once every 
+# 1 chunk (1,000 documents)
+lda = models.ldamodel.LdaModel(corpus=corpus, id2word=dictionary, 
+    num_topics=200, update_every=1, chunksize=1000, passes=1)
+</code></pre><p>It takes a few minutes to run but its worth it! The result is a set of vectors that give the the most important words and their weights for the cluster. A lot of these don&rsquo;t make sense but quite a number do - certainly enough to give the centroid articles I need. For example:</p><pre><code>u'0.060*cup + 0.055*kitchen + 0.039*sugar + 0.038*baking + 0.034*size + 0.034*milk + 0.031*recipe
+ + 0.030*cheese + 0.026*dough + 0.025*bread' 
+</code></pre><p>gives a set of important words for cooking/recipes category, while:</p><pre><code>u'0.273*God + 0.050*playing + 0.038*exercise + 0.030*Bible + 0.025*religion + 0.023*argument +
+ 0.020*prayer + 0.016*religious + 0.016*claims + 0.014*mercy',
+</code></pre><p>gives some for religion. I may need more than 200 clusters but this is a good start. More to come!</p><hr><ul class=pager><li class=previous><a href=/post/zite-replacement-4/ data-toggle=tooltip data-placement=top title="Building a Zite Replacement (Part 4)">&larr;
+Previous Post</a></li><li class=next><a href=/post/zite-replacement-6/ data-toggle=tooltip data-placement=top title="Building a Zite Replacement (Part 6)">Next
+Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramw.github.io issue-term=title theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(i,t){var n=document,s="script",e=n.createElement(s),o=n.getElementsByTagName(s)[0];e.src=i,t&&e.addEventListener("load",function(e){t(null,e)},!1),o.parentNode.insertBefore(e,o)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,r=$(_containerSelector),a=r.find("h1,h2,h3,h4,h5,h6");return $(e).html(''),a.each(function(){n=$(this).prop("tagName").toLowerCase(),i="#"+$(this).prop("id"),s=$(this).text(),t=$('<a href="'+i+'" rel="nofollow">'+s+"</a>"),o=$('<li class="'+n+'_nav"></li>').append(t),$(e).append(o)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

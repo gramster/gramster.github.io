@@ -1,0 +1,357 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="Building a Zite Replacement (Part 2)"><meta property="og:title" content="Building a Zite Replacement (Part 2)"><meta property="twitter:title" content="Building a Zite Replacement (Part 2)"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>Building a Zite Replacement (Part 2)-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/zite-replacement-2/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>Building a Zite Replacement (Part 2)</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Saturday, September 19, 2015</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><p>In the <a href=http://www.grahamwheeler.com/posts/zite-replacement-1.html>previous post</a> I gave an overview of what needs to be built for our <a href=http://zite.com/>Zite</a> replacement. In this post we will look at how to load an RSS feed and generate key terms for each article. In order to fetch the feed we will make use of the <a href=https://pypi.python.org/pypi/feedparser>feedparser</a> package, so make sure to install that first with pip, conda, or whatever you use.</p><p>Another thing we&rsquo;re going to want is to strip HTML tags from the articles. I did a Google for &ldquo;HTML element stripper Python&rdquo; and found <a href=http://stackoverflow.com/questions/753052/strip-html-from-strings-in-python>this StackOverflow post</a> with the code below that works great:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#6272a4>#!python</span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> HTMLParser <span style=color:#ff79c6>import</span> HTMLParser
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>class</span> <span style=color:#50fa7b>MLStripper</span>(HTMLParser):
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> __init__(self):
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>reset()
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>fed <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>handle_data</span>(self, d):
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>fed<span style=color:#ff79c6>.</span>append(d)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>get_data</span>(self):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;&#39;</span><span style=color:#ff79c6>.</span>join(self<span style=color:#ff79c6>.</span>fed)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>strip_tags</span>(html):
+</span></span><span style=display:flex><span>    s <span style=color:#ff79c6>=</span> MLStripper()
+</span></span><span style=display:flex><span>    s<span style=color:#ff79c6>.</span>feed(html)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> s<span style=color:#ff79c6>.</span>get_data()
+</span></span></code></pre></div><p>With that, let&rsquo;s begin. One of the things we will want to do is normalize capitalization of words. In particular, the first word in a sentence is capitalized and we want to in most cases undo that so we don&rsquo;t see two forms of the same word. One solution is to lower-case everything but that is throwing the baby out with the bathwater. A better solution is to look up each word in a dictionary. If we fail to find a match we can try the lower-case form.</p><p>There are probably libraries already to do this (NLTK?) but I did some early prototyping of the code in this post using the top 5000 words from <a href=http://www.wordfrequency.info/free.asp>this list</a>. So for now I&rsquo;ll just use that as a dictionary to normalize words. There are much more comprehensive lists out there without frequency information and I expect I&rsquo;ll replace this but due to my early experiments I had the word list loaded already.</p><p>If you&rsquo;re interested in using that list, you can copy/paste it into a spreadsheet and save it as a CSV once you have agreed to the terms. I used the code below to load that CSV file. I also put the top 198 words in a separate list that I was going to use to remove <a href=https://en.wikipedia.org/wiki/Stop_words>stop words</a>, but I ended up not needing that.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#6272a4>#!python</span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> csv
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>words5000 <span style=color:#ff79c6>=</span> {}
+</span></span><span style=display:flex><span>total <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>
+</span></span><span style=display:flex><span>count <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>
+</span></span><span style=display:flex><span>top_words <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span><span style=color:#ff79c6>with</span> <span style=color:#8be9fd;font-style:italic>open</span>(<span style=color:#f1fa8c>&#39;freq5000.csv&#39;</span>, <span style=color:#f1fa8c>&#39;rb&#39;</span>) <span style=color:#ff79c6>as</span> f:
+</span></span><span style=display:flex><span>reader <span style=color:#ff79c6>=</span> csv<span style=color:#ff79c6>.</span>reader(f)
+</span></span><span style=display:flex><span>total <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> row <span style=color:#ff79c6>in</span> reader:
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> row[<span style=color:#bd93f9>3</span>] <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;&#39;</span> <span style=color:#ff79c6>or</span> row[<span style=color:#bd93f9>3</span>][<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>&gt;</span> <span style=color:#f1fa8c>&#39;9&#39;</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>    v <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>int</span>(row[<span style=color:#bd93f9>3</span>])
+</span></span><span style=display:flex><span>    word <span style=color:#ff79c6>=</span> row[<span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>.</span>encode(<span style=color:#f1fa8c>&#39;ascii&#39;</span>, <span style=color:#f1fa8c>&#39;ignore&#39;</span>)
+</span></span><span style=display:flex><span>    count <span style=color:#ff79c6>+=</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> count <span style=color:#ff79c6>&lt;=</span> <span style=color:#bd93f9>198</span>:
+</span></span><span style=display:flex><span>        top_words<span style=color:#ff79c6>.</span>append(word)
+</span></span><span style=display:flex><span>    words5000[word] <span style=color:#ff79c6>=</span> v
+</span></span><span style=display:flex><span>    total <span style=color:#ff79c6>+=</span> v
+</span></span></code></pre></div><p>Next we will use a function that gets a dictionary with the words and counts from an article, and returns that plus the total number of words in the dictionary. It will do all the necessary work to strip tags, punctuation, and so on before computing the counts.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#6272a4>#!python</span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> re
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> string 
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>get_article_terms</span>(article):
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    Get the terms and counts from an article. Strip HTML tags and
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    non-essential punctuation, whitespace, and single
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    character &#39;words&#39; like s that may come from punctuation removal.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    Try normalize initial letter case using the 5000 word dictionary.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    Return a set of words and counts and a total count.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    terms <span style=color:#ff79c6>=</span> {}
+</span></span><span style=display:flex><span>    total <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4># Remove the HTML element tags</span>
+</span></span><span style=display:flex><span>    article <span style=color:#ff79c6>=</span> strip_tags(article)
+</span></span><span style=display:flex><span>    <span style=color:#6272a4># replace non-ASCII chars with space</span>
+</span></span><span style=display:flex><span>    article <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>sub(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;[^A-Za-z\-]+&#39;</span>,<span style=color:#f1fa8c>&#39; &#39;</span>, article)
+</span></span><span style=display:flex><span>    <span style=color:#6272a4># We could use a Counter here but the would need to post-process the keys </span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4># to remove the bogus ones and correct capitalization. Consider for later.</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> term <span style=color:#ff79c6>in</span> article<span style=color:#ff79c6>.</span>split(<span style=color:#f1fa8c>&#39; &#39;</span>):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>len</span>(term) <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>2</span> <span style=color:#ff79c6>and</span> (term <span style=color:#ff79c6>!=</span> <span style=color:#f1fa8c>&#39;a&#39;</span> <span style=color:#ff79c6>or</span> term <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;A&#39;</span> <span style=color:#ff79c6>or</span> term <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;I&#39;</span>):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>        total <span style=color:#ff79c6>+=</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Update the count. If the word is a new one then see if the lower</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># case form is in our dictionary and use that in preference.</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> term <span style=color:#ff79c6>in</span> terms:
+</span></span><span style=display:flex><span>            terms[term] <span style=color:#ff79c6>+=</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>            lterm <span style=color:#ff79c6>=</span> term<span style=color:#ff79c6>.</span>lower()
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> lterm <span style=color:#ff79c6>in</span> words5000:
+</span></span><span style=display:flex><span>                term <span style=color:#ff79c6>=</span> lterm
+</span></span><span style=display:flex><span>            terms[term] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> terms, total
+</span></span></code></pre></div><p>The method we will use to get topics is something called <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf>Term Frequency-Inverse Document Frequency</a> (TF-IDF). It essentially works by taking the frequency of a term in a document, and multiplying it by the log of the inverse of the number of documents the term occurs in. The idea is that the key terms will be words that occur frequently in <em>this</em> document relative to how frequently they occur in <em>all</em> the documents. Obviously words like &rsquo;the&rsquo;, &lsquo;and&rsquo;, etc have a high frequency in most documents, so they aren&rsquo;t interesting. But if a word that is uncommon in all the documents, like, say, &lsquo;pneumonia&rsquo;, occur relatively higher in a specific document, then that word is likely important.</p><p>A key part of this is that we need to count how many documents a word occurs in, not just how often it occurs in each document. So our next function is going to look at all the articles in a feed. Ideally we would compute the IDFs from a bigger corpus of documents, so that can be refined later (in fact, I used the top 5000 words as an alternative and they worked quite well too, but if every article in a feed include some boiler plate text, using the top 5000 words may not filter that out, but computing IDF just from the articles will).</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#6272a4>#!python</span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> collections
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> feedparser
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>get_article_data</span>(feed_url):
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    Calculate the term counts for each article in a feed as well as
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    the document counts for each term. Return a list of article metadata
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    including the title, a snippet, the distinct terms and their counts, etc,
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    as well as the counts of how many documents each term appeared in.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>    d <span style=color:#ff79c6>=</span> feedparser<span style=color:#ff79c6>.</span>parse(feed_url)
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    doc_terms <span style=color:#ff79c6>=</span> collections<span style=color:#ff79c6>.</span>Counter()
+</span></span><span style=display:flex><span>    articles <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    entries <span style=color:#ff79c6>=</span> d[<span style=color:#f1fa8c>&#39;entries&#39;</span>]
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> entry <span style=color:#ff79c6>in</span> entries:
+</span></span><span style=display:flex><span>        title <span style=color:#ff79c6>=</span> entry<span style=color:#ff79c6>.</span>get(<span style=color:#f1fa8c>&#39;title&#39;</span>, <span style=color:#ff79c6>None</span>)
+</span></span><span style=display:flex><span>            
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># For some sites seem we get summary and some content</span>
+</span></span><span style=display:flex><span>        summary <span style=color:#ff79c6>=</span> entry<span style=color:#ff79c6>.</span>get(<span style=color:#f1fa8c>&#39;summary&#39;</span>, <span style=color:#ff79c6>None</span>)
+</span></span><span style=display:flex><span>        content <span style=color:#ff79c6>=</span> entry<span style=color:#ff79c6>.</span>get(<span style=color:#f1fa8c>&#39;content&#39;</span>, <span style=color:#ff79c6>None</span>)
+</span></span><span style=display:flex><span>        article <span style=color:#ff79c6>=</span> summary <span style=color:#ff79c6>if</span> content <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>None</span> <span style=color:#ff79c6>else</span> content
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>        terms, count <span style=color:#ff79c6>=</span> get_article_terms(article)
+</span></span><span style=display:flex><span>        doc_terms<span style=color:#ff79c6>.</span>update(terms<span style=color:#ff79c6>.</span>keys())
+</span></span><span style=display:flex><span>        articles<span style=color:#ff79c6>.</span>append({<span style=color:#f1fa8c>&#39;title&#39;</span>: title, <span style=color:#f1fa8c>&#39;leader&#39;</span>: article[:<span style=color:#bd93f9>100</span>],
+</span></span><span style=display:flex><span>                        <span style=color:#f1fa8c>&#39;terms&#39;</span>: terms, <span style=color:#f1fa8c>&#39;count&#39;</span>: count, 
+</span></span><span style=display:flex><span>                        <span style=color:#f1fa8c>&#39;link&#39;</span>: entry<span style=color:#ff79c6>.</span>get(<span style=color:#f1fa8c>&#39;link&#39;</span>, <span style=color:#ff79c6>None</span>),
+</span></span><span style=display:flex><span>                        <span style=color:#f1fa8c>&#39;date&#39;</span>: entry<span style=color:#ff79c6>.</span>get(<span style=color:#f1fa8c>&#39;published_parsed&#39;</span>, <span style=color:#ff79c6>None</span>)})
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> articles, doc_terms
+</span></span></code></pre></div><p>Now we can use this function to compute the TF-IDFs for all the articles in a feed:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#6272a4>#!python</span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> math
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>get_feed_with_tf_idf</span>(feed_url):
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#34;&#34;&#34; Calculate TF-IDFs for each article in a feed and add to metadata &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    articles, doc_terms <span style=color:#ff79c6>=</span> get_article_data(feed_url)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> article <span style=color:#ff79c6>in</span> articles:
+</span></span><span style=display:flex><span>        terms <span style=color:#ff79c6>=</span> article[<span style=color:#f1fa8c>&#39;terms&#39;</span>]
+</span></span><span style=display:flex><span>        tf_idf <span style=color:#ff79c6>=</span> {}
+</span></span><span style=display:flex><span>        article_count <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>float</span>(article[<span style=color:#f1fa8c>&#39;count&#39;</span>])
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> term, count <span style=color:#ff79c6>in</span> terms<span style=color:#ff79c6>.</span>items():
+</span></span><span style=display:flex><span>            tf_idf[term] <span style=color:#ff79c6>=</span> (count <span style=color:#ff79c6>/</span> article_count) <span style=color:#ff79c6>*</span> math<span style=color:#ff79c6>.</span>log(<span style=color:#8be9fd;font-style:italic>len</span>(articles) <span style=color:#ff79c6>/</span> <span style=color:#8be9fd;font-style:italic>float</span>(doc_terms[term]))
+</span></span><span style=display:flex><span>        article[<span style=color:#f1fa8c>&#39;tf_idf&#39;</span>] <span style=color:#ff79c6>=</span> tf_idf
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> articles
+</span></span></code></pre></div><p>And we&rsquo;re basically done! Let&rsquo;s see how well it worked. We can try it out on the HuffPost and print out the top ten terms for each article:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#6272a4>#!python</span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> operator
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>articles <span style=color:#ff79c6>=</span> get_feed_with_tf_idf(<span style=color:#f1fa8c>&#39;http://www.huffingtonpost.com/feeds/index.xml&#39;</span>)
+</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> article <span style=color:#ff79c6>in</span> articles:
+</span></span><span style=display:flex><span>    rank <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>sorted</span>(article[<span style=color:#f1fa8c>&#39;tf_idf&#39;</span>]<span style=color:#ff79c6>.</span>items(), key<span style=color:#ff79c6>=</span>operator<span style=color:#ff79c6>.</span>itemgetter(<span style=color:#bd93f9>1</span>), reverse<span style=color:#ff79c6>=</span><span style=color:#ff79c6>True</span>)
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd;font-style:italic>print</span> <span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>%s</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>%s</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>%s</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#39;</span> <span style=color:#ff79c6>%</span> (article[<span style=color:#f1fa8c>&#39;title&#39;</span>], article[<span style=color:#f1fa8c>&#39;leader&#39;</span>], 
+</span></span><span style=display:flex><span>                            <span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#39;</span><span style=color:#ff79c6>.</span>join(x[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>for</span> x <span style=color:#ff79c6>in</span> rank[:<span style=color:#bd93f9>10</span>]))
+</span></span></code></pre></div><p>Running this right now gives the results below. Not bad for a first attempt! Note that the titles that are printed out were not included in the term counts and so are a good test (although in practice it would make sense to include these so they can help rank the terms).</p><pre><code>iPhone Shopping? Beware: Madness Ahead!
+If you're thinking of upgrading your aging iPhone - I've just gone through all the pain and sufferin
+iPhone
+ATT
+Verizon
+phone
+customers
+line
+phones
+sell
+you
+month
+
+Ted Cruz Declines To Say Whether He Thinks Obama Is A Christian
+&lt;div class=&quot;embed-asset embed&quot;&gt;&lt;br /&gt;
+        &lt;div class=&quot;embed-code&quot;&gt;&lt;span class=&quot;js-fivemin-script
+Cruz
+Christian
+president
+policies
+speculate
+Muslim
+contributed
+comments
+Obama
+faith
+
+How to Help Shatter the Class Ceiling - Elect Bernie Sanders
+Let's make history. The 2016 election offers a rare moment to crack a barrier that can truly transfo
+percent
+Sanders
+poverty
+income
+Sen
+far
+African-Americans
+wealth
+trillion
+households
+
+2-Year-Old Baby, 2 Others Gunned Down Inside Utah Home
+&lt;br /&gt;
+&lt;p class=&quot;ap-story-p&quot;&gt;SALT LAKE CITY (AP) -- Police in Utah arrested a 32-year-old man on Sat
+Chipping
+Tran
+inside
+boy
+-year-old
+home
+victims
+arrested
+Poike
+bodies
+
+Pope Francis Praises U.S.-Cuba Detente As Model For World
+&lt;br /&gt;
+&lt;p&gt;HAVANA (AP) &amp;mdash; Pope Francis hailed detente between the United States and Cuba as a mo
+Cuba
+Francis
+visit
+Cuban
+pope
+Raul
+United
+reconciliation
+airport
+travel
+
+Reminding Yourself You're F&amp;^*% Hot (Step 1)
+Ladies, there are so many facets in our struggle of masculine dominated life that project us to eith
+Kyle
+hot
+hotness
+itself
+swear
+moment
+was
+re
+know
+exact
+
+A Pope That Congress Should Listen To
+When the Pope takes center stage in the heart of the nation's capital next Thursday, Americans will 
+Pope
+values
+village
+community
+energy
+Iran
+person
+culture
+peace
+world
+
+Donald Trump &amp; Vaccines: Is He Ready To Be Responsible For A Children's Epidemic?
+&lt;strong&gt;Donald Trump may be a big blowhard, espousing his belief that there's a link between vaccine
+vaccines
+Donald
+Trump
+children
+doses
+effective
+vaccinations
+diseases
+Carson
+debate
+
+What You Should Do If You Own A Volkswagen That Was Just Recalled
+&lt;div class=&quot;embed-asset embed&quot;&gt;&lt;br /&gt;
+        &lt;div class=&quot;embed-code&quot;&gt;&lt;span class=&quot;js-fivemin-script
+Volkswagen
+vehicles
+loaner
+recalled
+car
+cars
+risking
+diesel-power
+vehicle
+safety
+
+5 Reasons People May Not Be Following Your Leadership
+There are times throughout a leader's tenure that he/she must look behind them and see if anyone is 
+team
+lead
+leader
+regularly
+disorganized
+leadership
+clarity
+praise
+follow
+you
+
+How To Deal With These 3 Difficult Managers At Work
+One of the biggest challenges for any employee is learning how to work well with a manager. A good w
+manager
+Gary
+Pleasing
+Patricia
+personality
+difficult
+Mitchell
+Micromanaging
+Goal-Focused
+she
+
+Experts: Cybersecurity Attacks Slow Ahead Of Obama's Meeting With Chinese President
+&lt;br /&gt;
+&lt;p&gt;WASHINGTON, Sept 19 (Reuters) - Major intrusions by Chinese hackers of U.S. companies' com
+Chinese
+cybersecurity
+Mandia
+China
+said
+breaches
+companies
+McClure
+Inc
+Xi
+
+6 Tips for the Unmotivated Student: How to Stay on Track After the First Week of School
+&lt;em&gt;Co-authored by &lt;a href=&quot;https://twitter.com/just1trunk&quot; target=&quot;_hplink&quot;&gt;Ashley Carter&lt;/a&gt;, staf
+study
+buddy
+semester
+your
+home
+media
+studying
+excited
+coffee
+finding
+
+3 Proven Ways To Help You Achieve Your Goals
+It's sad to think how many people go their whole lives dreaming of goals that they will never hit. W
+goals
+hit
+everyday
+everything
+your
+ll
+business
+want
+habit
+consistent
+
+Huckabee: Obama Nominated Openly Gay Army Head To 'Appease Homosexuals'
+&lt;div class=&quot;embed-asset embed&quot;&gt;&lt;br /&gt;
+        &lt;div class=&quot;embed-code&quot;&gt;&lt;span class=&quot;js-fivemin-script
+military
+Fanning
+Huckabee
+Carter
+gay
+nomination
+openly
+undersecretary
+appointment
+experiments
+</code></pre><hr><ul class=pager><li class=previous><a href=/post/zite-replacement-1/ data-toggle=tooltip data-placement=top title="Building a Zite Replacement (Part 1)">&larr;
+Previous Post</a></li><li class=next><a href=/post/zite-replacement-3/ data-toggle=tooltip data-placement=top title="Building a Zite Replacement (Part 3)">Next
+Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramw.github.io issue-term=title theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(i,t){var n=document,s="script",e=n.createElement(s),o=n.getElementsByTagName(s)[0];e.src=i,t&&e.addEventListener("load",function(e){t(null,e)},!1),o.parentNode.insertBefore(e,o)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,r=$(_containerSelector),a=r.find("h1,h2,h3,h4,h5,h6");return $(e).html(''),a.each(function(){n=$(this).prop("tagName").toLowerCase(),i="#"+$(this).prop("id"),s=$(this).text(),t=$('<a href="'+i+'" rel="nofollow">'+s+"</a>"),o=$('<li class="'+n+'_nav"></li>').append(t),$(e).append(o)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

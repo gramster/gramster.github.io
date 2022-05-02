@@ -1,0 +1,162 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="Scanner + Printer == Photocopier (eventually)"><meta property="og:title" content="Scanner + Printer == Photocopier (eventually)"><meta property="twitter:title" content="Scanner + Printer == Photocopier (eventually)"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>Scanner + Printer == Photocopier (eventually)-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/scanner-printer-photocopier-eventually/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>Scanner + Printer == Photocopier (eventually)</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Friday, February 1, 2008</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><p>My wife has been bugging me to make it easier for her to use our scanner
+and printer to make copies. I could buy a cheap all-in-one but she
+actually needs laser copies, not inkjet, for her hobby of stamp carving
+(she can iron a laser-printed image to make a basic transfer). The
+scanner and printer are attached to my PC but she wants to make copies
+without having to log on to my PC or bother me.</p><p>I believe that HP scanners can do this, but I have an Epson Perfection
+4490, and if you press the &lsquo;Scan to Printer&rsquo; button on the front it pops
+up UI on the PC. It&rsquo;s definitely not a one-step process and the buttons
+are a bit of a joke. So I thought I&rsquo;d write my own app using Window
+Image Acquisition to do this. My original plan was to write something
+that hooked the button event and then slept in the notification tray,
+waking up when the button gets pressed.</p><p>Of course, things are never that easy. I wrote the initial code, but the
+events never came to me (I&rsquo;ve since discovered that the Epson sends a
+<strong>wiaEventScanImage2</strong> event instead of a wiaEventScanPrintImage event,
+so its possible that was the problem and I may revisit my original code
+at some point). Whenever I pressed the button Epson&rsquo;s UI would pop up.
+Even more annoying, the first UI was a choice dialog asking me to choose
+between Epson Creativity Suite and Epson Scan, even though I had
+explicitly configured the scanner software to always use the copy
+utility in the creativity suite.</p><p>I started mucking about with registry settings but that quickly started
+getting ugly and wasn&rsquo;t really helping. So I hacked it. The first thing
+I did was to uninstall all the Epson Creativity Suite software, which
+was pretty useless anyway. That got rid of the choice dialog so pressing
+the button launched Epson Scan. Then I looked at the process that was
+running and found it was C:\Windows\twain_32\escndv\escndv.exe
+(which itself was confusing as the same app is also installed in
+c:\Program Files\Epson). I renamed that app escndv-orig.exe. I then
+made my own app in that directory and named it escndv.exe - so now
+pressing the button launched my app at last.</p><p>Next I had to write the code to scan and print with no UI. That proved a
+bit odd too, but eventually I figured it out. The code is shown below.
+It&rsquo;s really rough, but it works. I built it as a C# Windows console
+project, adding references to the WIA COM DLL and System.Drawing and
+System.Drawing.Printing. The app will pop open a dialog on first run to
+ask what scanner to use (even if there is only one); after that the
+scanner ID is persisted in the app settings. It prints to the default
+printer.</p><p>This is not completely UI-less - it does pop up a console window briefly
+while the scan is in progress - but at least no interaction on the PC is
+required.</p><p>I plan to extend this later to have one button do an autocrop and scale
+to fit. Currently pressing any of the other buttons will launch the
+original Epson Scan software.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c# data-lang=c#><span style=display:flex><span><span style=color:#ff79c6>using</span> System;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> System.Collections.Generic;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> System.Text;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> PrintScan.Properties;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> System.Drawing;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> System.Drawing.Printing;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> System.IO;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> WIA;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>namespace</span> PrintScan
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>class</span> <span style=color:#50fa7b>Program</span>
+</span></span><span style=display:flex><span>    {
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>static</span> <span style=color:#ff79c6>void</span> Main(<span style=color:#8be9fd>string</span>[] args)
+</span></span><span style=display:flex><span>        {
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>new</span> Program().Run(args);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        Settings settings = <span style=color:#ff79c6>new</span> Settings();
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>void</span> Configure() <span style=color:#6272a4>// Get the scanner to use via Choose Scanner dialog</span>
+</span></span><span style=display:flex><span>        {
+</span></span><span style=display:flex><span>            CommonDialogClass class1 = <span style=color:#ff79c6>new</span> CommonDialogClass();
+</span></span><span style=display:flex><span>            Device d = class1.ShowSelectDevice(WiaDeviceType.ScannerDeviceType, <span style=color:#ff79c6>true</span>, <span style=color:#ff79c6>false</span>);
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (d != <span style=color:#ff79c6>null</span>)
+</span></span><span style=display:flex><span>            {
+</span></span><span style=display:flex><span>                settings.DeviceID = d.DeviceID;
+</span></span><span style=display:flex><span>                settings.Save();
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd>bool</span> RunProcess(<span style=color:#8be9fd>string</span> cmd, <span style=color:#8be9fd>string</span> args) <span style=color:#6272a4>// Run some other exe; used to fall back to Epson Scan</span>
+</span></span><span style=display:flex><span>        {
+</span></span><span style=display:flex><span>            System.Diagnostics.Process proc = <span style=color:#ff79c6>new</span> System.Diagnostics.Process();
+</span></span><span style=display:flex><span>            proc.StartInfo.FileName = cmd;
+</span></span><span style=display:flex><span>            proc.StartInfo.Arguments = args;
+</span></span><span style=display:flex><span>            proc.StartInfo.UseShellExecute = <span style=color:#ff79c6>false</span>;
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> proc.Start();
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>const</span> <span style=color:#8be9fd>string</span> tempFile = <span style=color:#f1fa8c>@&#34;c:\\temp\\page.bmp&#34;</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>void</span> Run(<span style=color:#8be9fd>string</span>[] args)
+</span></span><span style=display:flex><span>        {
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (settings.DeviceID == <span style=color:#ff79c6>null</span> || settings.DeviceID.Length == <span style=color:#bd93f9>0</span>)
+</span></span><span style=display:flex><span>                Configure();
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            DeviceManager manager = <span style=color:#ff79c6>new</span> DeviceManagerClass();
+</span></span><span style=display:flex><span>            Device d = <span style=color:#ff79c6>null</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (args[<span style=color:#bd93f9>1</span>] == (<span style=color:#f1fa8c>&#34;/StiEvent:&#34;</span>+EventID.wiaEventScanImage2)) <span style=color:#6272a4>// I&#39;m surprised it&#39;s not EventID.wiaEventScanPrintImage</span>
+</span></span><span style=display:flex><span>            {
+</span></span><span style=display:flex><span>                <span style=color:#6272a4>// Find our scanner</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>foreach</span> (DeviceInfo info <span style=color:#ff79c6>in</span> manager.DeviceInfos)
+</span></span><span style=display:flex><span>                {
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>if</span> (info.DeviceID == settings.DeviceID)
+</span></span><span style=display:flex><span>                    {
+</span></span><span style=display:flex><span>                        d = info.Connect();
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>                        <span style=color:#6272a4>// Do the scan and save it to a temp file</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>                        ImageFile page = d.Items[<span style=color:#bd93f9>1</span>].Transfer(d.Items[<span style=color:#bd93f9>1</span>].Formats[<span style=color:#bd93f9>1</span>]) <span style=color:#ff79c6>as</span> ImageFile;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>                        <span style=color:#ff79c6>if</span> (File.Exists(tempFile))
+</span></span><span style=display:flex><span>                            File.Delete(tempFile);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>                        page.SaveFile(tempFile);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>                        <span style=color:#6272a4>// print it to the default printer</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>                        PrintDocument pd = <span style=color:#ff79c6>new</span> PrintDocument();
+</span></span><span style=display:flex><span>                        pd.PrintPage += <span style=color:#ff79c6>new</span> PrintPageEventHandler(pd_PrintPage);
+</span></span><span style=display:flex><span>                        pd.Print();
+</span></span><span style=display:flex><span>                        <span style=color:#ff79c6>break</span>;
+</span></span><span style=display:flex><span>                    }
+</span></span><span style=display:flex><span>                }
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>else</span>
+</span></span><span style=display:flex><span>            {
+</span></span><span style=display:flex><span>                RunProcess(<span style=color:#f1fa8c>@&#34;C:\\Windows\\twain\_32\\escndv\\escndv-orig.exe&#34;</span>, args[<span style=color:#bd93f9>0</span>]+<span style=color:#f1fa8c>&#34; &#34;</span>+args[<span style=color:#bd93f9>1</span>]);
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>void</span> pd_PrintPage(<span style=color:#8be9fd>object</span> sender, PrintPageEventArgs e)
+</span></span><span style=display:flex><span>        {
+</span></span><span style=display:flex><span>            Bitmap bmp = <span style=color:#ff79c6>new</span> Bitmap(tempFile);
+</span></span><span style=display:flex><span>            GraphicsUnit gu = GraphicsUnit.Document;
+</span></span><span style=display:flex><span>            RectangleF bounds = bmp.GetBounds(<span style=color:#ff79c6>ref</span> gu);
+</span></span><span style=display:flex><span>            e.Graphics.DrawImage(bmp, bounds, bounds, gu);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><hr><ul class=pager><li class=previous><a href=/post/why-there-is-no-integration-with-outlook-mobile-contacts/ data-toggle=tooltip data-placement=top title="Why There Is No Integration With Outlook Mobile Contacts">&larr;
+Previous Post</a></li><li class=next><a href=/post/webkinz-are-evil/ data-toggle=tooltip data-placement=top title="Webkinz Are Evil">Next
+Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramw.github.io issue-term=title theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(i,t){var n=document,s="script",e=n.createElement(s),o=n.getElementsByTagName(s)[0];e.src=i,t&&e.addEventListener("load",function(e){t(null,e)},!1),o.parentNode.insertBefore(e,o)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,r=$(_containerSelector),a=r.find("h1,h2,h3,h4,h5,h6");return $(e).html(''),a.each(function(){n=$(this).prop("tagName").toLowerCase(),i="#"+$(this).prop("id"),s=$(this).text(),t=$('<a href="'+i+'" rel="nofollow">'+s+"</a>"),o=$('<li class="'+n+'_nav"></li>').append(t),$(e).append(o)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

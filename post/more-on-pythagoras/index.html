@@ -1,0 +1,64 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="More on Pythagoras"><meta property="og:title" content="More on Pythagoras"><meta property="twitter:title" content="More on Pythagoras"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>More on Pythagoras-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/more-on-pythagoras/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>More on Pythagoras</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Sunday, January 17, 2010</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><p>Pythagoras is known for two great contributions to mathematics – he
+established the need for formal proofs instead of just conjecture and
+rules of thumb, and he established the existence of the irrationals. In
+popular culture of course, Pythagoras is more well known for the
+Pythagorean theorem – that the square of the hypotenuse of a right
+angled triangle is the sum of the squares of the other two sides – but
+this was one of the oldest known results in mathematics and in fact
+predates Pythagoras by as much as a thousand years. Nonetheless,
+Pythagoras provided a formal proof, and the result led him to ask
+whether there were rational numbers that worked in the case where the
+hypotenuse had the length two. That is, what was the fractional
+representation of the square root of two? Pythagoras managed to show
+there was none, leading to the discovery of the irrational numbers.</p><p>His proof was quite simple. Assume that \(\sqrt{2}\) can be
+expressed as a fraction \(\frac{a}{b}\) of two whole
+numbers \(a\) and \(b\). Assume these are the two smallest
+such whole numbers – that is, they have no common divisor allowing the
+fraction to be further reduced. Then:</p><p>$$\frac{a^2}{b^2} = 2$$</p><p>so:</p><p>$$a^2 = 2 b^2$$</p><p>The right hand side is even, which means \(a^2\) is even, and
+thus \(a\) must be even, or \(a=2m\) for some \(m\). But
+then:</p><p>$${(2m)}^2 = 2b^2$$</p><p>so:</p><p>$$2m^2 = b^2$$</p><p>So the left hand side is even, and thus \(b\) must be even. But if
+both \(a\) and \(b\) are even, then they have a common factor
+2, which contradicts the assumption that they were the smallest such
+numbers.</p><p>There are, of course, infinitely many cases where the Pythagorean
+triangles have sides with rational length, and for that matter, integer
+length. In a <a href=http://magimathics.com/more-on-diophantus-and-fermat>recent
+post</a>
+I mentioned the method described by Diophantus that inspired Fermat’s
+last theorem. It is easy to derive this method. Assume \(a\)
+and \(b\) are relatively prime, and that \(b\) is odd. Then:</p><p>$${(a+b)}^2 = a^2 + b^2 + 2ab > a^2 + b^2 = c^2$$</p><p>Thus \(c &lt; a+b\). So we can write \(c = a+b-d\) for some
+positive \(d\). Then:</p><p>$$a^2 + b^2 = {(a+b-d)}^2 = a^2 + b^2 + d^2 + 2ab -2ad -2bd$$</p><p>So:</p><p>$$d^2 = 2ad + 2bd - 2ab$$</p><p>From this we can see \(d\) must be even. Let \(d=2m\); then:</p><p>$$4m^2 = 4am+4bm-2ab$$</p><p>So:</p><p>$$ab=2am+2bm-2m^2$$</p><p>Thus \(ab\) is even, and as we assumed \(b\) is odd, \(
+a\) must be even. Since the sum of an even and an odd is an odd, \(
+c^2\) must be odd and so \(c\) must be odd.</p><p>So \(a\) is even, and \(b\) and \(c\) are odd. We can
+write \(b=s-t\) and \(c=s+t\) for some integers \(s\)
+and \(t\). Then:</p><p>$$a^2 + {(s-t)}^2 = {(s+t)}^2$$</p><p>or:</p><p>$$a^2 + (s^2 - 2st + t^2) = (s^2 + 2st + t^2)$$</p><p>Simplifying:</p><p>$$a^2 = 4st$$</p><p>So \(st\) must be a perfect square. We can write \(s=u^2\)
+and \(t=v^2\). Thus:</p><p>$$a^2 = 4u^2v^2$$</p><p>So:</p><p>$$a=2uv$$</p><p>So we have shown that a Pythagorean triple takes the form:</p><p>$$( 2uv, u^2-v^2, u^2 + v^2 )$$</p><hr><ul class=pager><li class=previous><a href=/post/much-ado-about-nothing/ data-toggle=tooltip data-placement=top title="Much Ado about Nothing">&larr;
+Previous Post</a></li><li class=next><a href=/post/the-horn-of-gabriel/ data-toggle=tooltip data-placement=top title="The Horn of Gabriel">Next
+Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramw.github.io issue-term=title theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(i,t){var n=document,s="script",e=n.createElement(s),o=n.getElementsByTagName(s)[0];e.src=i,t&&e.addEventListener("load",function(e){t(null,e)},!1),o.parentNode.insertBefore(e,o)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,r=$(_containerSelector),a=r.find("h1,h2,h3,h4,h5,h6");return $(e).html(''),a.each(function(){n=$(this).prop("tagName").toLowerCase(),i="#"+$(this).prop("id"),s=$(this).text(),t=$('<a href="'+i+'" rel="nofollow">'+s+"</a>"),o=$('<li class="'+n+'_nav"></li>').append(t),$(e).append(o)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

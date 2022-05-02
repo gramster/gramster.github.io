@@ -1,0 +1,100 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="Primal Soup"><meta property="og:title" content="Primal Soup"><meta property="twitter:title" content="Primal Soup"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>Primal Soup-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/primal-soup/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>Primal Soup</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Wednesday, January 6, 2010</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><img src=/img/image_thumb9.png style=float:right;margin:10px><p>Number theory really began with Euclid, around 300BC, in books 7 through
+9 of his masterwork, <em>The Elements</em>. It is here that we find the
+original definitions of odd and even numbers, prime and composite
+numbers, perfect numbers (numbers which are the sum of their factors,
+e.g. 6 = 3 + 2 + 1), and more. But the greatest achievements of all were
+his proofs that composite numbers are the products of primes, that this
+factorization is unique, and that there are an infinity of primes. Most
+introductory algebra or number theory classes cover these three great
+proofs, but they are worth revisiting for those who may have forgotten.</p><p>Before doing so, it is worth revisiting Euclid’s clever algorithm for
+calculating the greatest common divisor (GCD) of two numbers. We made
+use of this when solving the <a href=http://magimathics.com/monkeying-around>Monkey and Coconuts
+puzzle</a>.</p><p>We divide the smaller number into the larger and keep track of the
+remainder. Then we divide that remainder into the smaller number to get
+a second remainder, then divide the second remainder into the first
+remainder to get a third remainder, and so on. Eventually we get a
+remainder of zero; the remainder just before this is the GCD. If this
+happens to be one, we say the numbers are coprime. For example, consider
+64 and 10:</p><ul><li>64 = 10 x 6 + 4</li><li>10 = 4 x 2 + 2</li><li>4 = 2 x 2 + 0</li></ul><p>So the GCD is 2.</p><p>For another example, consider 77 and 65:</p><ul><li>77 = 65 x 1 + 12</li><li>65 = 12 x 5 + 5</li><li>12 = 5 x 2 + 2</li><li>5 = 2 x 2 + 1</li><li>2 = 1 x 2 + 0</li></ul><p>So the GCD is 1 and the numbers are coprime.</p><p>In the proofs below we make use of a special case of Bézout&rsquo;s identity,
+which states that if two numbers \(a\) and \(b\) have a
+GCD \(g\), then there exists some \(x\) and \(y\) such
+that \(ax + by = g\). In our case we care about the situation
+where \(a\) and \(b\) are coprime, so that there exists
+some \(x\) and \(y\) such that \(ax + by = 1\). We aren’t
+proving that here but it is exactly equivalent to solving the
+Diophantine equations we solved for the <a href=http://magimathics.com/monkeying-around>Monkey and Coconuts
+problem</a>
+(where \(x\) and \(y\) where the number of coconuts at the
+start and end).</p><p><em><strong>Proof that Composite Numbers have Prime Factors</strong></em></p><p>Let \(A\) be a composite number. Then by definition \(A\) must
+be divisible by some smaller number \(B\). If \(B\) is prime
+we are done; if \(B\) is not prime it is must be divisible by some
+smaller number \(C\), and so on. Continuing in this way, we find:</p><p>$$A > B > C > \dots > 1$$</p><p>This sequence must terminate with a prime number in the last position
+before 1; if not, that is, if each successive number is still composite,
+then the series is infinite, but we cannot have an infinite series of
+decreasing whole numbers.</p><p><em><strong>Prime Factorization Theorem (aka the Unique Factorization Theorem aka
+the Fundamental Theorem of Arithmetic)</strong></em></p><p>There are two steps: first we show that if a prime \(p\) divides a
+composite \(ab\), then \(p\) must divide at least one
+of \(a\) or \(b\). Assume \(p\) does not divide \(
+a\) - then the GCD (greatest common divisor) of \(p\) and \(
+a\) must be 1, as \(p\) is prime. By Bézout&rsquo;s identity, there must
+be some integers \(x\) and \(y\) satisfying \(px + ay =
+1\). Multiplying both sides by \(b\) gives \(pxb+aby = b\),
+and both terms on the left hand side are products of \(p\),
+thus \(b\) must be a product of \(p\).</p><p>Now for the main proof. Let \(s\) be the smallest natural number
+that can be written as a product of prime numbers in more than one way
+(ignoring ordering, of course). Let one factorization be \(p_1
+p_2 \dots p_m\) and another be \(q_1 q_2 \dots q_n\). The
+previous result proves that \(p_1\) divides either \(q_1\)
+or \(q_2 \dots q_n\). Because both \(q_1\) and \(
+q_2 \dots q_n\) must have unique prime factorizations, \(p_1\)
+must equal some \(q_i\). If we then remove \(p_1\)
+and \(q_i\)  we have two different factorizations of a number
+\(\frac{s}{p_1}\) which is smaller than \(s\), which
+contradicts our assumption that \(s\) is the smallest such number.</p><p><em><strong>Proof of the Infinitude of the Primes</strong></em></p><p>Assume the set of primes is finite, given by \({ p_1, p_2,
+\dots, p_n }\). Consider the number \(p = p_1 p_2 p_3 \dots
+p_n + 1\). This is not divisible by any of the primes in the set; it
+always leaves a remainder of 1. Therefore it is either itself prime or
+has other prime divisors not in the set, and so the set is incomplete.</p><p>Further reading: William Dunham’s <a href=https://amzn.to/3FGRTRI>Journey through Genius: The Great
+Theorems of
+Mathematics</a>
+has two chapters on Euclid’s elements and covers much of this material
+(although he omits the proofs apart from the last one). <a href=https://amzn.to/3qAz8cf>Proofs from THE
+BOOK</a>
+has about six different proofs of the infinitude of the primes, each
+using a different branch of mathematics, from algebra to set theory to
+topology. To dust off my rusty memory of these proofs I had to pull out
+my well-thumbed college textbook <a href=https://amzn.to/3JsJR13>Rings, Fields and Groups: An
+Introduction to Abstract
+Algebra</a>,
+but while it is a great text I wouldn’t recommend it to those faint of
+heart!</p><hr><ul class=pager><li class=previous><a href=/post/archimedes-counts-the-sand/ data-toggle=tooltip data-placement=top title="Archimedes counts the sand">&larr;
+Previous Post</a></li><li class=next><a href=/post/much-ado-about-nothing/ data-toggle=tooltip data-placement=top title="Much Ado about Nothing">Next
+Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramw.github.io issue-term=title theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(i,t){var n=document,s="script",e=n.createElement(s),o=n.getElementsByTagName(s)[0];e.src=i,t&&e.addEventListener("load",function(e){t(null,e)},!1),o.parentNode.insertBefore(e,o)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,r=$(_containerSelector),a=r.find("h1,h2,h3,h4,h5,h6");return $(e).html(''),a.each(function(){n=$(this).prop("tagName").toLowerCase(),i="#"+$(this).prop("id"),s=$(this).text(),t=$('<a href="'+i+'" rel="nofollow">'+s+"</a>"),o=$('<li class="'+n+'_nav"></li>').append(t),$(e).append(o)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

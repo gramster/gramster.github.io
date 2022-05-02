@@ -1,0 +1,66 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="More on Diophantus and Fermat"><meta property="og:title" content="More on Diophantus and Fermat"><meta property="twitter:title" content="More on Diophantus and Fermat"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>More on Diophantus and Fermat-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/more-on-diophantus-and-fermat/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>More on Diophantus and Fermat</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Sunday, January 3, 2010</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><p>In a <a href=http://magimathics.com/monkeying-around>previous
+post</a> I
+wrote about how Fermat scribbled his famous “last theorem” in the margin
+of Diophantus’ <em>Arithmetica</em>. This is called Fermat’s last theorem not
+because it was the last thing Fermat wrote but because of all the
+incomplete theorem’s we know were left by Fermat it was the last to be
+proved, taking about 350 years.</p><p>The section of the book where Fermat wrote his comment was on finding
+<em>Pythagorean triples</em>: square numbers whose sums also form squares. Such
+numbers can be the sides of Pythagorean (right-angled) triangles, the
+most well know being 3-4-5.</p><p>The <em>Arithmetica</em> was a book of computational methods rather than
+theoretical mathematics. In modern terms we would call it a book of
+numerical algorithms. Much of the material was not invented by
+Diophantus but was collected by him. This includes his method for
+finding Pythagorean triples, which was as follows. Take any two whole
+numbers \(a\) and \(b\). Then the following three numbers are
+the sides of a Pythagorean triangle:</p><ul><li>\(2ab\)</li><li>\(a^2 - b^2\)</li><li>\(a^2 + b^2\)</li></ul><p>Furthermore, any such triple can be multiplied by a constant to get
+another triple (e.g. the triple 3-4-5 can be multiplied by 3 to get the
+triple 9-12-15, etc).</p><img src=/img/image_thumb1.png style=float:right;margin:10px><p>Fermat’s theorem asserts that while there are an infinite number of
+Pythagorean triples, there are no solutions in whole numbers for higher
+powers. Fermat did leave a proof for the fourth power. Euler proved the
+theorem for the third power. Dirichlet proved the theorem for fifth and
+14th powers. Lame and Kummer managed to prove the theorem for all powers
+up to 100 except for 37, 59 and 67. By 1980, the theorem had been proven
+for all powers up to 125,000!</p><p>It took some modern developments in elliptic functions to proceed
+further. Elliptic functions are functions in two unknowns where one
+unknown is squared and the other cubed (e.g. \(y^2 = x^3 -
+x - 1\)). It was found that if Fermat was wrong, and there is a solution
+for some power higher than two, then that solution describes a very
+unusual elliptic curve, so unusual it seems unlikely it could exist.</p><p>In 1986 Kenneth Ribet showed that such an elliptic curve would violate
+the 1955 Taniyama-Shimura conjecture, which claims that every elliptic
+curve is associated with a modular function. While the Taniyama-Shimura
+conjecture was not itself proven this did provide a link between two
+fields of mathematics, and it was this conjecture that was ultimately
+proven by Andrew Wiles and a former student in 1993 and 1994, thus
+finally proving Fermat correct.</p><p>If Fermat really did have a proof, though, then there is a much simpler
+proof still waiting to be found…</p><hr><ul class=pager><li class=previous><a href=/post/the-wandering-ant/ data-toggle=tooltip data-placement=top title="The Wandering Ant">&larr;
+Previous Post</a></li><li class=next><a href=/post/archimedes-counts-the-sand/ data-toggle=tooltip data-placement=top title="Archimedes counts the sand">Next
+Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramw.github.io issue-term=title theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(i,t){var n=document,s="script",e=n.createElement(s),o=n.getElementsByTagName(s)[0];e.src=i,t&&e.addEventListener("load",function(e){t(null,e)},!1),o.parentNode.insertBefore(e,o)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,r=$(_containerSelector),a=r.find("h1,h2,h3,h4,h5,h6");return $(e).html(''),a.each(function(){n=$(this).prop("tagName").toLowerCase(),i="#"+$(this).prop("id"),s=$(this).text(),t=$('<a href="'+i+'" rel="nofollow">'+s+"</a>"),o=$('<li class="'+n+'_nav"></li>').append(t),$(e).append(o)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

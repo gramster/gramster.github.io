@@ -1,0 +1,118 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="The End of the Universe"><meta property="og:title" content="The End of the Universe"><meta property="twitter:title" content="The End of the Universe"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>The End of the Universe-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/the-end-of-the-universe/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>The End of the Universe</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Sunday, December 13, 2009</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><p>In the Indian city of Benares, beneath a dome that marks the center of
+the world, is a brass plate in which are set three diamond needles, each
+as thick as a bee and a cubit high. At the time of creation Brahma
+placed on one of these needles 64 disks of pure gold, each a different
+size, each resting only on plates of a larger size (so the largest disk
+was at the bottom and the smallest at the top).</p><p>In the temple are priests whose task is to transfer all the disks to a
+different needle, moving only one disk at a time between needles but
+never placing a larger disk on top of a smaller one. When the task is
+done, tower, temple and Brahmins all will vanish with a thunderclap and
+the world will vanish.</p><p>So how much time do we have left?</p><p>The romantic fable above was popularized (and possibly invented) by one
+Edouard Lucas to accompany a popular game he invented and sold in 1883,
+called the Towers of Hanoi. The game itself has only 8 disks (which is
+fortunate, as we shall see), and is still available today.</p><p><img src=/img/200703_hanoi_1st_lab_375.jpg alt='An original Edouard Lucas puzzle. Photo courtesy of the Puzzle Museum.  (C)2009 Hordern-Dalgety Collection <a href="http://puzzlemuseum.org">http://puzzlemuseum.org</a>)'></p><p>When trying to solve the problem, it helps to start small. Obviously if
+there were no discs, no moves would be needed, and with one disc, just
+one move is needed. What about two discs? That would require three
+moves: moving the smallest disc from the “initial” to the “spare”
+needle, then moving the largest disc to the “target” needles, and
+finally moving the small disc to the target needle.</p><p>Going beyond two discs things are a little less obvious. If we think
+about the largest disc though, we can note that in order to move the
+largest disc from the initial to the target pin, we must first move all
+the other discs to the spare pin. So, if we have <em>n</em> discs, we can state
+a solution to the <em>n</em>-disc problem thus:</p><ul><li><p>move <em>n-1</em> discs from the initial to the spare needle, using the
+target needle as a spare</p></li><li><p>move disc <em>n</em> (the largest disc) from the initial needle to the target
+needle</p></li><li><p>move <em>n-1</em> discs from the spare needle to the target needle, using the
+initial needle as a spare</p></li></ul><p>So we have effectively reduced the n disc problem to an <em>n-1</em> disc
+problem. If we repeatedly apply this approach, eventually we get to a 1
+disc problem which is trivial.</p><p>Even though we have “solved” the problem, it is not obvious what the
+sequence of moves should be for a large number of discs. Nonetheless,
+the method above works, and describes a formal recipe, commonly known as
+an <em><strong>algorithm</strong></em>, to solve the problem. Keeping track of the sequence
+of moves that have been done and still need to be done can be somewhat
+tedious for a human, but not for a computer, and the method above is
+often used in computer programs to solve the Towers problem. The
+algorithm could be written as:</p><pre><code>SolveTowers(from, to, using, n)
+{
+	if (n &gt; 0)
+    {
+        SolveTowers(from, using, to, n-1);
+        print &quot;Move disc &quot; + n + &quot; from needle &quot;+from+&quot; to needle &quot;+to;
+        SolveTowers(using, to, from, n-1);
+    }
+}
+</code></pre><p>If we called the needles A, B and C, and ran the algorithm above with
+“SolveTowers(A, B, C, 64)” we would get the sequence of moves needed by
+the monks. Algorithms like the one above, where we break the problem
+down using a smaller version of itself, are called <em><strong>recursive
+algorithms</strong></em>.</p><p>We still haven’t answered the question of how long it would take, but
+we’re getting closer. If we call the number of moves needed to solve the
+<em>n</em>-disc Tower problem \(S_{n}\), then we can see (modeling the
+steps above):</p><ul><li><p>we need \(S_{n-1}\) moves for the first step</p></li><li><p>plus one move for disc n</p></li><li><p>plus \(S_{n-1}\) moves for the last step</p></li></ul><p>In other words \(S_{n} = 2 S_{n-1} + 1\).</p><p>This  equation needs to stop somewhere to be useful; we know that one
+disc takes one move so we know that \(S_{1} = 1\). So we can write
+the complete recursive definition of \(S_{n}\) as:</p><p>$$ S_n = \begin{cases}
+2S_{n-1} + 1 & \text{if } n > 1, \\
+1 & \text{if } n = 1.
+\end{cases} $$</p><p>Equations like this, where we define sequence terms in terms of earlier
+sequence terms, are called <em><strong>recurrence</strong> <strong>relations</strong></em> or
+<em><strong>difference equations</strong></em>, while known values like \(S_{1} = 1\)
+that terminate the process are called <em><strong>boundary conditions</strong></em>.</p><p>Towers of Hanoi is just one of many recurrence relations. We’ll look at
+a few more and then look at some general techniques for dealing with
+these.</p><p>For a first example, consider how many pieces you can slice the plane
+into with a number of lines, where no two lines are parallel and no
+three intersect at a single point (lines that satisfy these conditions
+are said to be in <em>general position</em>). The first line will divide the
+plane in two; the second line will divide it in four, the third in
+seven, and in general:</p><p>$$P_n = P_{n-1} + n$$</p><p>where \(P_n\) is the number of pieces after the n’th line. I.e.
+the \(n^{th}\) line adds \(n\) new pieces. The boundary
+condition is \(P_{0}=1\).</p><p>As another example, consider a population of organisms that takes 2
+years to mature after which each pair produces another pair, and
+continues to do so each year thereafter.</p><p>Each newborn pair plus offspring then has an annual population count of
+1, 1, 3, 5, 8, 13…, which may be recognized as the Fibonacci sequence:</p><p>$$a_n = a_{n-1} + a_{n-2}$$</p><p>with boundary conditions \(a_0 = 1, a_1 = 1\).</p><p>The problem with these is that in order to compute the value for
+some \(n\), we have to calculate all values all the way from the
+boundary condition up to the \(n^{th}\). We’d prefer to just have
+some function in terms of \(n\).</p><p>There are a number of approaches we can use. We can try to find the
+function by inspection, using some number of terms, and then prove the
+postulated solution by induction. A related approach is to look at
+modified versions of the sequence - for example dividing each term
+by \(n\) - to see if a pattern emerges. Adding a constant to each
+term before the division may make the pattern more obvious.</p><p>If we look at Towers of Hanoi, we can see that the first few terms are
+1, 3, 7, 15, 31, 63. So a reasonable postulate is:</p><p>$$S_n = 2^n - 1$$</p><p>It is easy to prove this by induction:</p><p>$$S_{n+1} = 2 S_n + 1 = 2 (2^n - 1) + 1 = 2^{n+1} - 1$$</p><p>For the regions of the plane, we can use the second approach. Simple
+division by \(n\) doesn’t offer a clear pattern, but if we first
+subtract 1 from each term, i.e. look at the sequence
+\(\frac{P_n-1}{n}\), we get the sequence 1, 1.5, 2, 2.5, 3, 3.5, …, and
+a clear pattern emerges. It appears that:</p><p>$$\frac{P_n-1}{n} = \frac{n+1}{2}$$</p><p>or:</p><p>$$P_n = \frac{n (n+1)}{2} + 1$$</p><p>Once again by induction:</p><p>$$\begin{align}
+P_{n+1} & = P_n + n + 1 \\
+& = (\frac{n (n+1)}{2}+1) + n + 1 \\
+& = \frac{n^2 + 2 + 2n}{2} + 1 \\
+& = \frac{(n+1)(n+2)}{2}+1
+\end{align}$$</p><p>As for the Fibonacci sequence, that is a topic for another day!</p><hr><ul class=pager><li class=previous><a href=/post/fixing-grub-after-installing-windows-7/ data-toggle=tooltip data-placement=top title="Fixing Grub after installing Windows 7">&larr;
+Previous Post</a></li><li class=next><a href=/post/monkeying-around/ data-toggle=tooltip data-placement=top title="Monkeying Around">Next
+Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramw.github.io issue-term=title theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(i,t){var n=document,s="script",e=n.createElement(s),o=n.getElementsByTagName(s)[0];e.src=i,t&&e.addEventListener("load",function(e){t(null,e)},!1),o.parentNode.insertBefore(e,o)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,r=$(_containerSelector),a=r.find("h1,h2,h3,h4,h5,h6");return $(e).html(''),a.each(function(){n=$(this).prop("tagName").toLowerCase(),i="#"+$(this).prop("id"),s=$(this).text(),t=$('<a href="'+i+'" rel="nofollow">'+s+"</a>"),o=$('<li class="'+n+'_nav"></li>').append(t),$(e).append(o)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

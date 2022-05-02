@@ -1,0 +1,141 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="http://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="Building a Zite Replacement (Part 8)"><meta property="og:title" content="Building a Zite Replacement (Part 8)"><meta property="twitter:title" content="Building a Zite Replacement (Part 8)"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>Building a Zite Replacement (Part 8)-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/zite-replacement-8/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>Building a Zite Replacement (Part 8)</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Saturday, October 31, 2015</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><p>Happy Halloween, all!</p><p>I&rsquo;m sitting here handing out candy and glow necklaces to all comers so its a
+good time to write a new post.</p><p>It&rsquo;s been a while since much happened as I&rsquo;ve been really busy with the beta
+release of Google Cloud Datalab, which is my day job. But now that is out and
+it&rsquo;s the weekend and lousy weather here in the Pacific Northwest it&rsquo;s been a
+good day t get back to things.</p><p>Today I did something I&rsquo;ve been meaning to do for a while, which is to change
+the code to populate a MongoDB database rather than writing files to the file
+system. Interestingly it seems to be quite a bit slower than the file system
+but hopefully it will scale better and make up for things when I have ad-hoc
+queries to do.</p><p>I hadn&rsquo;t used MongoDB before so it was a learning opportunity. Mongo is a
+no-SQL database that stores <em>collections</em> of <em>documents</em> in its databases,
+rather than tables of records, so it is well suited
+to storing the JSON RSS feed objects. It&rsquo;s very easy to use too. I modified
+my exitisting code to take two callbacks, one to create an ID from an article,
+and the other to save the article give the ID. For the old code, the ID just
+corresponds to the pathname of the file, and saving just saves the JSON as a
+string to that file. The ID creator has a secondary role of checking if we have
+already fetched that object before, in which case we don&rsquo;t need to save it.</p><p>Each document has a special unique key &lsquo;_id&rsquo;, and can have secondary keys. The
+document itself is an ordered set of keys with associated values (which can
+themselves be documents), so this maps reasonably well to Javascript objects.
+Keys are any UTF-8 strings but should avoid &lsquo;$&rsquo; and &lsquo;.&rsquo; which have special
+usage, and NUL which is used as a key terminator. Keys must be unique, and are case sensitive.</p><p>Collections (groups of documents) can store different types of documents; they do
+not have a fixed schema. That said, it is generally more sensible and efficient
+to keep similar documents in the same collection, and make use of multiple
+collections, rather than putting everything in one collection. Collection names
+are non-empty UTF-8 strings that don&rsquo;t include NUL or &lsquo;$&rsquo; and don&rsquo;t start with
+&lsquo;system.&rsquo; (the latter two constraints are for implementation-specific reasons).</p><p>Database names should be non-empty alphanumeric ASCII strings of 64 bytes or less
+(not actually quite that restrictive but that&rsquo;s a good guideline). &lsquo;admin&rsquo; is a
+special root database, and &lsquo;config&rsquo; is a special database that stores sharding
+information. &rsquo;local&rsquo; is a database that can be used to store collections that should
+not be replicated.</p><p>I now have an articles collection, and my
+callbacks to use Mongo just look like this:</p><pre><code>#!python
+import pymongo
+
+def make_id(metadata):
+    id = metadata['guid']
+    if articles.find_one({'guid': id}):
+        # We already have this article so no need to save it...
+        return None
+    return id
+
+def handler(id, metadata):
+    articles.insert_one(metadata)
+</code></pre><p>Very simple, no? But I&rsquo;m getting a bit ahead of myself; it&rsquo;s worth mentioning
+how I installed Mongo. You can download it from mongodb.org. I went for
+version 2.6 rather than 3 as there is a nice free GUI tool for inspecting
+and querying the database called RoboMongo and it doesn&rsquo;t work yet with Mongo 3.</p><p>If you download the Mac version of Mongo you get compiled binaries, not an
+installer. These need to be put in your path somewhere. I use Homebrew for
+some software on the Mac so I already have a /usr/local/bin directory in
+my path, and just put the Mongo files there. I know, this is polluting the
+Homebrew install somewhat, but it seemed the most practical anyway. You then
+need to create a directory for the databases, which by default on the Mac should
+be /data/db. Make sure you have write permission, or at least the user account
+that is going to run the mongo server does. You can then start Mongo by running
+&lsquo;mongod&rsquo; at the command line.</p><p>Mongo creates databases and collections when they are accessed which makes
+things very simple. The initial code in my fetcher looks like this:</p><pre><code>#!python
+import datetime
+import sys
+import pymongo
+
+if __name__ == '__main__':
+    con = pymongo.MongoClient()
+    # Creates DB if needed
+    db = con.feed_database
+    # Creates collection if needed
+    articles = db.articles
+    feedlist = sys.argv[2] if len(sys.argv) &gt; 2 else 'feeds.txt'
+    start = datetime.datetime.now() - datetime.timedelta(days=30)
+    # Do the fetch.
+</code></pre><p>I mentioned before how I changed the fetcher to use parallel fetches. That
+uses the Python thread library, so the code continues:</p><pre><code>#!python
+    dictionary = set(feedlib.load_list('dictionary.txt'))
+    stop_words = set(feedlib.load_list('stopwords.txt'))
+
+    # Spawn 20 fetchers
+    for i in range(20):
+        t = Fetcher(queue, start, articles, dictionary, stop_words)
+        t.setDaemon(True)
+        t.start()
+
+    # Queue up the feeds and wait until done.
+    feed_list = sys.argv[2] if len(sys.argv) &gt; 2 else 'feeds.txt'
+    for feed in feedlib.load_list(feed_list):
+        queue.put(feed)
+    queue.join()
+</code></pre><p>Each thread is handled by an instance of the Fetcher class:</p><pre><code>#!python
+class Fetcher(threading.Thread):
+
+    def __init__(self, queue, start, articles, dictionary, stop_words):
+        super(Fetcher, self).__init__()
+        self.queue = queue
+        self._start = start
+        self._articles = articles
+        self._dictionary = dictionary
+        self._stop_words = stop_words
+
+    def run(self):
+        while True:
+            feed = self.queue.get()
+
+            try:
+                feedlib.process_feed(feed, self._dictionary,
+                                     self._stop_words,
+                                     start_date=self._start,
+                                     idmaker=idmaker, handler=handler)
+            except Exception as e:
+                msg = &quot;Failed to process %s: %s&quot; % (feed, str(e))
+                print msg
+                logging.getlogger().error(msg)
+
+            self.queue.task_done()
+</code></pre><hr><ul class=pager><li class=previous><a href=/post/node-npm-express/ data-toggle=tooltip data-placement=top title="Node, npm and Express">&larr;
+Previous Post</a></li><li class=next><a href=/post/zite-replacement-9/ data-toggle=tooltip data-placement=top title="Building a Zite Replacement (Part 9)">Next
+Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramw.github.io issue-term=title theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(i,t){var n=document,s="script",e=n.createElement(s),o=n.getElementsByTagName(s)[0];e.src=i,t&&e.addEventListener("load",function(e){t(null,e)},!1),o.parentNode.insertBefore(e,o)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,r=$(_containerSelector),a=r.find("h1,h2,h3,h4,h5,h6");return $(e).html(''),a.each(function(){n=$(this).prop("tagName").toLowerCase(),i="#"+$(this).prop("id"),s=$(this).text(),t=$('<a href="'+i+'" rel="nofollow">'+s+"</a>"),o=$('<li class="'+n+'_nav"></li>').append(t),$(e).append(o)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

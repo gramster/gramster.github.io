@@ -20,9 +20,6 @@ params:
   leancloud_app_id: ''
   leancloud_app_key: ''
   algolia_search: false
-  algolia_appId: ''
-  algolia_indexName: ''
-  algolia_apiKey: ''
   sidebar_about_description: 'Software Developer, Engineering Manager, Curious Character'
   sidebar_avatar: img/graham.png
   featured_tags: true
@@ -50,11 +47,6 @@ params:
     - title: Martin Fowler
       href: 'https://martinfowler.com'
     - title: ServiceMesher
-      href: 'http://www.servicemesher.com'
-    - title: Pxhere
-      href: 'https://pxhere.com'
-    - title: unsplash
-      href: 'https://unsplash.com'
   addtional_menus:
     - title: BOOKS
       href: /top/books/

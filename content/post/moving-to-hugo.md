@@ -116,10 +116,50 @@ I expect there will be some rough edges but probably nothing too serious.
 Publishing is a bit more messy. I host using github-pages, and Nikola has a 
 command that will check my sources into one branch and the generated site into 
 another branch and push everything upstream, easy as pie. Hugo doesn't seem 
-to have anything like this so its all a bit of a kludge. I basically followed
-the tutorial [her](https://bwaycer.github.io/hugo_tutorial.hugo/tutorials/github-pages-blog/).
+to have anything like this so its all a bit of a kludge.
+
+First I renamed my old repo `gramw.github.io` and created a new one with the 
+same name, and pushed all the content. Then I created a `gh-pages` empty 
+branch (I'm not sure this was necessary; it may have happened anyway, but I
+was having some permission problems as I worked this out and wanted to eliminate
+this as a source of problems):
 
 ```
+git checkout --orphan gh-pages
+git reset --hard
+git commit --allow-empty -m "Initializing gh-pages branch"
+git push -u origin gh-pages
+git checkout main
+```
 
+I put the two script elements that I was patching in to the `footer.html` in a `patch/footer.html` file:
+
+```
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script src="https://utteranc.es/client.js"
+        repo="gramster/gramw.github.io"
+        issue-term="title"
+        theme="github-light"
+        crossorigin="anonymous"
+        async>
+</script>
+```
+
+and the command line I used to convert the notebooks in a file `patch/convertnb.sh`:
+
+```
+#!/bin/bash
+
+for i in notebooks/*.ipynb
+do
+    nb2hugo "$i" --site-dir . --section post
+done
+```
+
+Then I created a Github action do generate the content whenever I push to `main` and push that content to the `gh-pages` branch:
+
+```
+```
 
 

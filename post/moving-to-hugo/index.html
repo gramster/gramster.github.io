@@ -94,7 +94,58 @@ for i in notebooks/*.ipynb
 do
     nb2hugo &#34;$i&#34; --site-dir . --section post
 done
-</code></pre><p>Then I created a Github action do generate the content whenever I push to <code>main</code> and push that content to the <code>gh-pages</code> branch:</p><pre tabindex=0><code></code></pre><hr><ul class=pager><li class=previous><a href=/post/unit-tests-that-dont-suck/ data-toggle=tooltip data-placement=top title="Unit Tests that Don't Suck">&larr;
+</code></pre><p>Then I created a Github action do generate the content whenever I push to <code>main</code> and push that content to the <code>gh-pages</code> branch:</p><pre tabindex=0><code>name: Github Pages
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v2
+        with:
+          hugo-version: &#39;latest&#39;
+          extended: true
+
+      - name: Patch theme
+        run: |
+          cat patch/footer.html themes/hugo-theme-cleanwhite/layouts/partials/footer.html &gt; footer.html
+          mv footer.html themes/hugo-theme-cleanwhite/layouts/partials
+          sed -i  &#39;s/CATALOG/SECTIONS/&#39; themes/hugo-theme-cleanwhite/layouts/_default/single.html
+        shell: bash
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: &#34;3.9&#34;
+
+      - name: Install nb2hugo
+        run:
+          python -m pip install nb2hugo
+        shell: bash
+
+      - name: Convert notebooks
+        run: patch/convertnb.sh
+        shell: bash
+
+      - name: Build
+        run: hugo --minify --baseURL=http://www.grahamwheeler.com
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+</code></pre><hr><ul class=pager><li class=previous><a href=/post/unit-tests-that-dont-suck/ data-toggle=tooltip data-placement=top title="Unit Tests that Don't Suck">&larr;
 Previous Post</a></li><li class=next><a href=/post/github-reports/ data-toggle=tooltip data-placement=top title="Github reports for backlog management">Next
 Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
 visible-lg-block

@@ -1,2 +1,5 @@
 public
-
+notebooks/.ipynb_checkpoints
+.hugo_build.lock
+.venv
+static/post

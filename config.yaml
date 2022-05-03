@@ -38,6 +38,7 @@ params:
     linkedin: 'https://www.linkedin.com/in/grahamwheeler'
     stackoverflow: 'https://stackoverflow.com/users/968133'
     github: 'https://github.com/gramster'
+    twitter: 'https://twitter.com/gramnix'
   friend_link:
     - title: Brett Cannon
       href: 'https://snarky.ca/author/brett/'

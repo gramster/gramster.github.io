@@ -182,7 +182,7 @@ runs:
     - name: Check out code
       uses: actions/checkout@v2
       with:
-        persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+        persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of the passed-in token.
         ref: ${{ inputs.branch }}
         fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
     - name: Setup Python
@@ -290,7 +290,7 @@ runs:
 
 (I removed the full comma-separated list of team members and just left my name on line 26. It's possible to use `ghreport` to get the team members if the token provided is from a user with admin rights, but that won't get ex-team members and slows down the report generation process; providing an explicit list is a better option as the list changes rarely).
 
-The main inputs are the personal access token, repository name, and type of report. It's also possible to reduce the batch size used by `ghreport`, but I havent found that necessary.
+The main inputs are the access token, repository name, and type of report. It's also possible to reduce the batch size used by `ghreport`, but I havent found that necessary.
 
 The first step generates a script to set the environment as a way of passing parameters to further steps. If I remember correctly, I did this because I wanted to prepend 'microsoft/' to the repository name and didn't know a different way to concatenate strings, but I don't remember exactly; it may be this step is overkill and could be simplified;
 
@@ -308,10 +308,6 @@ on:
     - cron: 30 7 * * *    
   workflow_dispatch:
   
-permissions:
-  issues: read
-  contents: write
-
 jobs:
   report:
     runs-on: ubuntu-18.04
@@ -321,10 +317,10 @@ jobs:
         uses: gramster/python-reports@main
         with:
           repository: 'pylance-release'
-          githubToken: ${{ secrets.PAT }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-This is pretty straightforward now; mostly I just need to give permissions to read issues and commit PRs, specify when the action should run (7:30am daily), and specify the repository and the token. The token could have been factored out and accessed directly in the previous step as I use the same token for each report so am repeating myself, but its a minor annoyance.
+This is pretty straightforward now; mostly I just need to give permissions to read issues and commit PRs, specify when the action should run (7:30am daily), and specify the repository and the token.
 
 ## Customizing this for your use
 If you wanted to make use of this on your own repo(s), I think the approach would vary based on whether you have just one repo or multiple. If you have multiple, I would suggest starting with creating a version of the 'Python Team Github Action' tailored to your organization, and then create workflows similar to mine above that use that. If you have just a single repo, that might be overkill, and you could just create a workflow that inlines steps from the 'Python Team Github Action' customized for your repo.

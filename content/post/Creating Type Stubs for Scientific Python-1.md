@@ -11,7 +11,7 @@ scientific Python packages specifically.
 
 ## Why I Care About Python Type Stubs
 
-One of the teams I manage in my day job is the [Pylance](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance) team, who build the Python language server for Visual Studio and Visual Studio Code. Pylance is built on top of the statis type checker [pyright](https://github.com/Microsoft/pyright), but where pyright focuses on finding errors, Pylance is focused on providing a great editor experience (as well as finding errors, but the editor experience is paramount).
+One of the teams I manage in my day job is the [Pylance](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance) team, who build the Python language server for Visual Studio and Visual Studio Code. Pylance is built on top of the static type checker [pyright](https://github.com/Microsoft/pyright), but where pyright focuses on finding errors, Pylance is focused on providing a great editor experience (as well as finding errors, but the editor experience is paramount).
 
 In order to provide great completions when you hit '.' after some expression, we need to know the type of the object to the left of '.'. If it is a string (`str`), for example, we know we can offer completions like `find` or `rfind`. So types are super-important to providing a great experience.
 
@@ -19,7 +19,7 @@ Pyright has a state-of-the-art type inference engine for Python, that computes a
 
 ## Lessons Learned Stubbing pandas and matplotlib
 
-One of the areas we focus on in Visual Studio Code is data science and scientific Python. So we would like to provide a good experience for the packages popular in that domain, many of which don't have stubs or inline annotations. An eraly focus of ours was `pandas`, and we created the most complete stubs to date for that library, and I am happy to say that with a lot of help and support from pandas core developer Dr. Irv Lustig, we managed to get the pandas code devs to take over maintenance of these type stubs, which can be found now at [pandas-dev/pandas-stubs: Public type stubs for pandas (github.com)](https://github.com/pandas-dev/pandas-stubs). I was the main author behind these stubs, as this is a 'spare time' project as the Pylance team is focused on developing Pylance. After I handed off pandas, I decided to tackle matplotlib, and in early September we shipped the [resulting stubs](https://github.com/microsoft/python-type-stubs/tree/main/matplotlib), which, while not complete, are much more comprehensive than the ones we bundled before.
+One of the areas we focus on in Visual Studio Code is data science and scientific Python. So we would like to provide a good experience for the packages popular in that domain, many of which don't have stubs or inline annotations. An early focus of ours was `pandas`, and we created the most complete stubs to date for that library, and I am happy to say that with a lot of help and support from pandas core developer Dr. Irv Lustig, we managed to get the pandas code devs to take over maintenance of these type stubs, which can be found now at [pandas-dev/pandas-stubs: Public type stubs for pandas (github.com)](https://github.com/pandas-dev/pandas-stubs). I was the main author behind these stubs, as this is a 'spare time' project as the Pylance team is focused on developing Pylance. After I handed off pandas, I decided to tackle matplotlib, and in early September we shipped the [resulting stubs](https://github.com/microsoft/python-type-stubs/tree/main/matplotlib), which, while not complete, are much more comprehensive than the ones we bundled before.
 
 While doing these two libraries, I noticed a similarity in how the docstrings were formatted. It turns out there is a convention for docstrings in scientific Python, namely [numpydoc](https://numpydoc.readthedocs.io/en/latest/format.html). Furthermore, in many cases these docstrings include type information. Not as formally as in Python typing, but formally enough to be a useful source of typing information. So I decided to generalize what I had been doing to allow me to address a broader set of packages.
 
@@ -29,7 +29,7 @@ The pandas stubs were created completely by hand, from reading the docstrings. F
 
 - I used [MonkeyType](https://monkeytype.readthedocs.io/en/stable/index.html) to run all the examples, and then applied the resulting types from the traces to the pyright-generated stubs
 
-- I wrote a utulity to parse the docstrings and augment the stubs from the last stage with those types, where I could make sense of them
+- I wrote a utility to parse the docstrings and augment the stubs from the last stage with those types, where I could make sense of them
 
 - I did a manual cleanup pass (which was still quite a large effort, but the prior steps probably saved me about 70% of the work compared to doing it all manually)
 
@@ -37,13 +37,13 @@ In retrospect, I don't think doing the MonkeyType step bought me as much as I ex
 
 ## Starting Over without MonkeyType
 
-While I don't want to preclude augmenting stubs with MonkeyType traces, I thought it woudl be useful to create a utility that could generate stubs for packages using numpydoc-format docstrings only. It would always be possible to add more types based on execution traces later (and I may cover that in a later blog post). Given I would use LibCST to insert the type annotations, it made sense to try use that to generate the stubs end-to-end, removing the need for the first step of generating unannotated stubs with pyright. I thought the process should more or less be as follows (ignoring the docstrings/types for now:
+While I don't want to preclude augmenting stubs with MonkeyType traces, I thought it would be useful to create a utility that could generate stubs for packages using numpydoc-format docstrings only. It would always be possible to add more types based on execution traces later (and I may cover that in a later blog post). Given I would use LibCST to insert the type annotations, it made sense to try use that to generate the stubs end-to-end, removing the need for the first step of generating unannotated stubs with pyright. I thought the process should more or less be as follows (ignoring the docstrings/types for now:
 
 - replace all function bodies with '...'
 - replace the right hand side of any assignment statements at the top level or within classes but not within functions with '...' (but take note of the type of the right-hand side; this could be used to annotate the line later). These are class attributes, or in some cases, method aliases (e.g. in matplotlib there is something like a `setcolors` method in some class that is followed by `setcolor=setcolors` to alias it)
 - (optionally) replace all default parameter value assignments with `=...`. I say optionally, as for Pylance we would actually like to keep these; we will show the stub to users as the method signature when hovering in the editor, and this is useful information
 - remove any top-level code that is not a simple assignment (handled in previous step), import statement, class or function definition
-- (To be done later) - get the types from the docstrings and annotate parameters, return values and attributes where possible. Take special note of default value assignments of `None` and augment the types with `None` as an union option, as this is not always called out explicitly in the docstrings.
+- (To be done later) - get the types from the docstrings and annotate parameters, return values and attributes where possible. Take special note of default value assignments of `None` and augment the types with `None` as a union option, as this is not always called out explicitly in the docstrings.
 - Remove all docstrings
 - Save the new file as a stub
 - Format them with Black
@@ -115,7 +115,7 @@ def patch_source(source: str, strip_defaults: bool = False) -> str|None:
         modified = cstree.visit(patcher)
     except:  # Exception as e:
         # Note: I know that e is undefined below; this actually lets me
-        # successfully see the stack trace from the original excception
+        # successfully see the stack trace from the original exception
         # as traceback.print_exc() was not working for me.
         print(f"Failed to patch file: {e}")
         return None

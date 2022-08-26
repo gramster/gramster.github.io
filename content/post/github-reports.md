@@ -4,7 +4,7 @@ author: Graham Wheeler
 date: 2022-05-01
 ---
 
-A couple of years ago we decided we wanted to make sure that we were responding timeously to issues that users created on our GitHub repos. In particular, a 3-business day SLA was what we thought would be appropriate. Making sure that we did that day after day could be a bit tedious, so I thought it made sense to automate it. 
+A couple of years ago we decided we wanted to make sure that we were responding promptly to issues that users created on our GitHub repos. In particular, a 3-business day SLA was what we thought would be appropriate. Making sure that we did that day after day could be a bit tedious, so I thought it made sense to automate it. 
 
 We had a vast trove of GitHub data in our Kusto data warehouse for every repository owned by Microsoft. It was possible to run Kusto queries and send e-mail using our low-code/no-code Power Apps platform, so I spent some time writing the queries and getting this all set up, and it worked great.
 
@@ -31,8 +31,8 @@ There are several components to the system:
 
 - there is a GitHub workflow for each report, that runs on a schedule. This needs to be configured withe the repo, the access token, and the type of report, as well as an optional batch size which can be useful in rare cases where issues have many events that cause the query responses to be too large;
 - the workflows in turn each make use of a GitHub action, which is still largely specific to my use case, but adds additional settings that are common across all my reports; for example, it specifies all the GitHub user names of people in my team, and adds the `microsoft/` organizational part of the repository path. This action is mostly just me following DRY (don't repeat yourself) principles;
-- that GitHub action in turn makes use of a generic GitHub action, which is what you would make use of if you customised this yourself; this action requires a full set of input parameters and makes very few assumptions about the inputs beyond having some default values;
-- that action then leverages a utility `ghreport` written in Python that queries GitHub APIs for the repo specified at the start and using the initially passed-in access token, and generates the reports in Markdown format (it supports HTML format too, in which case it can include a chart of bug rates over time, but for the purposes of having automated reports comitted to a GitHub repo that are easy to read, Markdown makes more sense).
+- that GitHub action in turn makes use of a generic GitHub action, which is what you would make use of if you customized this yourself; this action requires a full set of input parameters and makes very few assumptions about the inputs beyond having some default values;
+- that action then leverages a utility `ghreport` written in Python that queries GitHub APIs for the repo specified at the start and using the initially passed-in access token, and generates the reports in Markdown format (it supports HTML format too, in which case it can include a chart of bug rates over time, but for the purposes of having automated reports committed to a GitHub repo that are easy to read, Markdown makes more sense).
 
 We'll go through each of these in turn. I should note that in my day to day job I am a manager of managers and don't normally get to write GitHub actions; this was my first time, so there may be things I am doing inefficiently or non-idiomatically. I welcome feedback.
 
@@ -74,7 +74,7 @@ def get_members(owner:str, repo:str, token:str) -> set:
 
 ### Getting Open Issues and their Events
 
-The key piece to getting the data is the GraphQL query. An earlier version of my code used the REST API, but it is very ineffecient and requires many calls to get all the necessary data; with the API rate limiting that happens it can take hours to get all the data necessary. In contrast, the GraphQL approach takes only a few queries and can be done in minutes if not seconds.
+The key piece to getting the data is the GraphQL query. An earlier version of my code used the REST API, but it is very inefficient and requires many calls to get all the necessary data; with the API rate limiting that happens it can take hours to get all the data necessary. In contrast, the GraphQL approach takes only a few queries and can be done in minutes if not seconds.
 
 I'm not going to explain how to use GraphQL here; there are plenty of references for that. Suffice it to say that in our query, we want to get all the open issues for  a repo, and for each issue we want the number, title, timestamp when created, original author, and the subsequent timeline events if they are label, unlabel, or comment events. We need the label events to distinguish bugs from other issues, and for the comment events we want to know who commented and when. We limit to 100 timeline events which should be enough for most issues, while we get pagination continuation for the issues  themselves in case they can't be retrieved in a single call. The key subset of the query is :
 
@@ -132,7 +132,7 @@ class Issue:
     is_bug: bool
 ```
 
-Generating the reports once we have this data is fairly straighforward.
+Generating the reports once we have this data is fairly straightforward.
 
 ## The Generic GitHub Action
 
@@ -290,7 +290,7 @@ runs:
 
 (I removed the full comma-separated list of team members and just left my name on line 26. It's possible to use `ghreport` to get the team members if the token provided is from a user with admin rights, but that won't get ex-team members and slows down the report generation process; providing an explicit list is a better option as the list changes rarely).
 
-The main inputs are the access token, repository name, and type of report. It's also possible to reduce the batch size used by `ghreport`, but I havent found that necessary.
+The main inputs are the access token, repository name, and type of report. It's also possible to reduce the batch size used by `ghreport`, but I haven't found that necessary.
 
 The first step generates a script to set the environment as a way of passing parameters to further steps. If I remember correctly, I did this because I wanted to prepend 'microsoft/' to the repository name and didn't know a different way to concatenate strings, but I don't remember exactly; it may be this step is overkill and could be simplified;
 

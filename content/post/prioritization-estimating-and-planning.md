@@ -223,7 +223,7 @@ Start by picking user stories:
 - Make sure the team has a clear Definition of Ready and Definition of Done
 - Prioritize stories if not yet done, and estimate in points
 - Determine capacity for the iteration in points
-- Add known unusual sizeable meetings/holidays/etc in plan, or reduce initial capacity to compensate
+- Add known unusual sizable meetings/holidays/etc in plan, or reduce initial capacity to compensate
 - Pick high priority stories for the iteration based on capacity. Aim for a coherent iteration theme rather than just taking the topmost stories.
 
 Then go to the task level:

@@ -10,7 +10,7 @@ finally done it. There's nothing wrong with Nikola; I think it's actually less
 work than Hugo because it handles `.ipynb` Jupyter notebooks very seamlessly,
 but Hugo is super-fast so you can work in a 'live-releoad' mode which I like.
 So this weekend I finally did it. I didn't take notes as I went, but I think
-I can reconstruct what I did feairly easily:
+I can reconstruct what I did fairly easily:
 
 First I installed Hugo:
 
@@ -94,7 +94,7 @@ work with Hugo. Nikola is notebook-aware and does the processing itself, but
 Hugo does not. I found a wrapper around `nbconvert`, [nb2hugo](https://github.com/vlunot/nb2hugo/) which does a decent job. In Nikola the front matter went into
 separate `.meta` files; I had to inline that as an initial cell in the notebooks
 and change the format to TOML (this inconsistency will likely drive me to use
-TOML everywhere soon). For now the process of coverting the notebooks is manual
+TOML everywhere soon). For now the process of converting the notebooks is manual
 which isn't ideal but doesn't need to happen too often. I put all the notebooks 
 in a folder named `notebooks`, and created a script in the same folder called
 `convert.sh`, with the contents:
@@ -116,7 +116,7 @@ I expect there will be some rough edges but probably nothing too serious.
 Publishing is a bit more messy. I host using github-pages, and Nikola has a 
 command that will check my sources into one branch and the generated site into 
 another branch and push everything upstream, easy as pie. Hugo doesn't seem 
-to have anything like this so its all a bit of a kludge.
+to have anything like this so it's all a bit of a kludge.
 
 First I renamed my old repo `gramw.github.io` and created a new one with the 
 same name, and pushed all the content. Then I created a `gh-pages` empty 
@@ -214,5 +214,7 @@ jobs:
 
 
 ```
+
+And that's it! It's a reasonable solution.
 
 

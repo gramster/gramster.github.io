@@ -3,6 +3,8 @@ If updating theme, make sure to change layouts/partials/footer.html to include:
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
 </script>
 
+If github pages aren't working, check the custom domain; should be www.grahamwheeler.com
+
 TODO
 - affiliate links
 - RSS icon seems busted

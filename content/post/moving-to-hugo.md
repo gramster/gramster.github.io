@@ -215,6 +215,11 @@ jobs:
 
 ```
 
-And that's it! It's a reasonable solution.
+And that's it! It's a reasonable solution. Except for one bit of nastiness which I didn't experience
+with Nikola (where I pushed to the `gh-pages` branch from my desktop as part of Nikola's publish step):
+every time a change gets published, GitHub loses my custom domain settings and I have to go and re-enter
+my domain on the Settings/Pages section of GitHub. This tripped mme up a few times until I realized 
+what was happening. It's really annoying but I don't know that there's much I can do about it.
+
 
 

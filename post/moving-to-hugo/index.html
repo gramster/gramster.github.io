@@ -145,7 +145,11 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
-</code></pre><p>And that&rsquo;s it! It&rsquo;s a reasonable solution.</p><hr><ul class=pager><li class=previous><a href=/post/unit-tests-that-dont-suck/ data-toggle=tooltip data-placement=top title="Unit Tests that Don't Suck">&larr;
+</code></pre><p>And that&rsquo;s it! It&rsquo;s a reasonable solution. Except for one bit of nastiness which I didn&rsquo;t experience
+with Nikola (where I pushed to the <code>gh-pages</code> branch from my desktop as part of Nikola&rsquo;s publish step):
+every time a change gets published, GitHub loses my custom domain settings and I have to go and re-enter
+my domain on the Settings/Pages section of GitHub. This tripped mme up a few times until I realized
+what was happening. It&rsquo;s really annoying but I don&rsquo;t know that there&rsquo;s much I can do about it.</p><hr><ul class=pager><li class=previous><a href=/post/unit-tests-that-dont-suck/ data-toggle=tooltip data-placement=top title="Unit Tests that Don't Suck">&larr;
 Previous Post</a></li><li class=next><a href=/post/github-reports/ data-toggle=tooltip data-placement=top title="Github reports for backlog management">Next
 Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
 visible-lg-block

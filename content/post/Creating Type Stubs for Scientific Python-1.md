@@ -53,9 +53,9 @@ LibCST is reasonably easy to understand, although can take some experimentation 
 
 Once the Python code is parsed into a CST, you can apply visitors to the tree to modify it. LibCST walks the tree, and calls method in your visitor class upon entry and exit from each node:
 
-- for the entry methods you usually would just set some flags or counters to tell that you were in a class or function, so that other visitors have more context when they are deciding what to do. You can also short-circuit the tree traversal in an entry method, and tell LibCST to not recurse through any of the child nodes (this will be useful when we do things like replace function bodies with `...`).
+- for the entry methods you usually would just set some flags or counters to tell that you were in a class or function, so that other visitors have more context when they are deciding what to do. You can also short-circuit the tree traversal in an entry method by returning `False`, which tells LibCST to not recurse through any of the child nodes (this will be useful when we do things like replace function bodies with `...`).
 
-- the exit methods are the main place you would modify the tree; you can create a modified version of the node and replace that instead of the original.
+- the exit methods are the main place you would modify the tree; you can create a modified version of the node and return that instead of the original.
 
 Once the tree walking is complete, you can either apply further visitors, or you can generate code form the (possibly modified) CST.
 
@@ -81,7 +81,7 @@ class StubbingTransformer(cst.CSTTransformer):
         return updated_node
 ```
 
-Note that I want to replace the value with the CST node corresponding to `...`; rather than try to construct that it is easier to just use the helper `cst.parse_expression` to construct it for me from the source string `'...'`.
+Note that I want to replace the value with the CST node corresponding to `...`; rather than try to construct that explicitly with class constructors it is easier to just use the helper `cst.parse_expression` to construct it for me from the source string `'...'`. Constructing CST nodes to represent what you want can be non-trivial so these helpers are invaluable.
 
 ### Replacing Function Bodies with `...`
 
@@ -289,7 +289,7 @@ except ImportError:
     pass
 ```
 
-We could add a visitor method to visit all Import nodes, and if they are not under a top-level SimpleStatementLine node then collect them and inject them later; for now we'll defer on that.
+We could add a visitor method to visit all `Import` nodes, and if they are not under a top-level `SimpleStatementLine` node then collect them and inject them later; for now we'll defer on that.
 
 We could also remove functions and classes that are private; i.e. have names that start with a single underscore. The danger there is that they may actually be referenced by public classes and methods (as parameter or return types, or default parameter values). For now we will keep them. We can look at removing them later.
 
@@ -423,7 +423,7 @@ Now we can change the assignment handler to retain the value if it is a method o
 Of course, these stubs aren't adding any real value as they have no type annotations that weren't present in the original code. So now let's look at adding more types.
 
 
-First, let's just infer types from the right-hand-side values. The code below will do that for assignment statements, converting them from `Assign` nodes to `AnnAssign` nodes:
+First, let's just infer types from the right-hand-side values. The code below will do that for assignment statements, converting them from `Assign` nodes to `AnnAssign` nodes, using the type of the object on the right-hand side to determine the inferred type:
 
 ```python
     @staticmethod

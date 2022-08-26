@@ -16,7 +16,7 @@ finally done it. There&rsquo;s nothing wrong with Nikola; I think it&rsquo;s act
 work than Hugo because it handles <code>.ipynb</code> Jupyter notebooks very seamlessly,
 but Hugo is super-fast so you can work in a &rsquo;live-releoad&rsquo; mode which I like.
 So this weekend I finally did it. I didn&rsquo;t take notes as I went, but I think
-I can reconstruct what I did feairly easily:</p><p>First I installed Hugo:</p><pre tabindex=0><code>brew install hugo
+I can reconstruct what I did fairly easily:</p><p>First I installed Hugo:</p><pre tabindex=0><code>brew install hugo
 </code></pre><p>Then I created a new site:</p><pre tabindex=0><code>hugo new site grahamwheeler --format yaml
 cd grahamwheeler
 git init .
@@ -57,7 +57,7 @@ work with Hugo. Nikola is notebook-aware and does the processing itself, but
 Hugo does not. I found a wrapper around <code>nbconvert</code>, <a href=https://github.com/vlunot/nb2hugo/>nb2hugo</a> which does a decent job. In Nikola the front matter went into
 separate <code>.meta</code> files; I had to inline that as an initial cell in the notebooks
 and change the format to TOML (this inconsistency will likely drive me to use
-TOML everywhere soon). For now the process of coverting the notebooks is manual
+TOML everywhere soon). For now the process of converting the notebooks is manual
 which isn&rsquo;t ideal but doesn&rsquo;t need to happen too often. I put all the notebooks
 in a folder named <code>notebooks</code>, and created a script in the same folder called
 <code>convert.sh</code>, with the contents:</p><pre tabindex=0><code>#!/bin/bash
@@ -70,7 +70,7 @@ done
 I expect there will be some rough edges but probably nothing too serious.</p><p>Publishing is a bit more messy. I host using github-pages, and Nikola has a
 command that will check my sources into one branch and the generated site into
 another branch and push everything upstream, easy as pie. Hugo doesn&rsquo;t seem
-to have anything like this so its all a bit of a kludge.</p><p>First I renamed my old repo <code>gramw.github.io</code> and created a new one with the
+to have anything like this so it&rsquo;s all a bit of a kludge.</p><p>First I renamed my old repo <code>gramw.github.io</code> and created a new one with the
 same name, and pushed all the content. Then I created a <code>gh-pages</code> empty
 branch (I&rsquo;m not sure this was necessary; it may have happened anyway, but I
 was having some permission problems as I worked this out and wanted to eliminate
@@ -145,7 +145,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
-</code></pre><hr><ul class=pager><li class=previous><a href=/post/unit-tests-that-dont-suck/ data-toggle=tooltip data-placement=top title="Unit Tests that Don't Suck">&larr;
+</code></pre><p>And that&rsquo;s it! It&rsquo;s a reasonable solution.</p><hr><ul class=pager><li class=previous><a href=/post/unit-tests-that-dont-suck/ data-toggle=tooltip data-placement=top title="Unit Tests that Don't Suck">&larr;
 Previous Post</a></li><li class=next><a href=/post/github-reports/ data-toggle=tooltip data-placement=top title="Github reports for backlog management">Next
 Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
 visible-lg-block

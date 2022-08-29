@@ -1,0 +1,999 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="https://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="https://www.grahamwheeler.com/img/forest.jpg"><meta name=title content><meta property="og:title" content><meta property="twitter:title" content><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>Graham Wheeler's Random Forest</title><link rel=canonical href=/post/creating-type-stubs-for-scientific-python-part-2/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1></h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler's Random Forest
+on
+Monday, January 1, 0001</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><h1 id=creating-type-stubs-for-scientific-python-part-2>Creating Type Stubs for Scientific Python (Part 2)</h1><p>Welcome back to this series on creating type stubs for scientific Python. In the last post we looked at using LibCST to generate skeleton type stubs, with a little bit of inference from value assignments. In this post we will dive into the process of using numpydoc-format docstrings.</p><h2 id=an-intro-to-numpydoc>An Intro to numpydoc</h2><p>The easiest way to get a feel for numpydoc-format docstrings is to look at an example:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>legend_elements</span>(self, prop<span style=color:#ff79c6>=</span><span style=color:#f1fa8c>&#34;colors&#34;</span>, num<span style=color:#ff79c6>=</span><span style=color:#f1fa8c>&#34;auto&#34;</span>,
+</span></span><span style=display:flex><span>                        fmt<span style=color:#ff79c6>=</span><span style=color:#ff79c6>None</span>, func<span style=color:#ff79c6>=</span><span style=color:#ff79c6>lambda</span> x: x, <span style=color:#ff79c6>**</span>kwargs):
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        Create legend handles and labels for a PathCollection.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        Each legend handle is a `.Line2D` representing the Path that was drawn,
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        and each label is a string what each Path represents.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        This is useful for obtaining a legend for a `~.Axes.scatter` plot;
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        e.g.::
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            scatter = plt.scatter([1, 2, 3],  [4, 5, 6],  c=[7, 2, 3])
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            plt.legend(*scatter.legend_elements())
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        creates three legend elements, one for each color with the numerical
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        values passed to *c* as the labels.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        Also see the :ref:`automatedlegendcreation` example.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        Parameters
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        ----------
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        prop : {&#34;colors&#34;, &#34;sizes&#34;}, default: &#34;colors&#34;
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            If &#34;colors&#34;, the legend handles will show the different colors of
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            the collection. If &#34;sizes&#34;, the legend will show the different
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            sizes. To set both, use *kwargs* to directly edit the `.Line2D`
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            properties.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        num : int, None, &#34;auto&#34; (default), array-like, or `~.ticker.Locator`
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            Target number of elements to create.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            If None, use all unique elements of the mappable array. If an
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            integer, target to use *num* elements in the normed range.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            If *&#34;auto&#34;*, try to determine which option better suits the nature
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            of the data.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            The number of created elements may slightly deviate from *num* due
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            to a `~.ticker.Locator` being used to find useful locations.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            If a list or array, use exactly those elements for the legend.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            Finally, a `~.ticker.Locator` can be provided.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        fmt : str, `~matplotlib.ticker.Formatter`, or None (default)
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            The format or formatter to use for the labels. If a string must be
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            a valid input for a `.StrMethodFormatter`. If None (the default),
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            use a `.ScalarFormatter`.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        func : function, default: ``lambda x: x``
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            Function to calculate the labels.  Often the size (or color)
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            argument to `~.Axes.scatter` will have been pre-processed by the
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            user using a function ``s = f(x)`` to make the markers visible;
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            e.g. ``size = np.log10(x)``.  Providing the inverse of this
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            function here allows that pre-processing to be inverted, so that
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            the legend labels have the correct values; e.g. ``func = lambda
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            x: 10**x``.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        **kwargs
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            Allowed keyword arguments are *color* and *size*. E.g. it may be
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            useful to set the color of the markers if *prop=&#34;sizes&#34;* is used;
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            similarly to set the size of the markers if *prop=&#34;colors&#34;* is
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            used. Any further parameters are passed onto the `.Line2D`
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            instance. This may be useful to e.g. specify a different
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            *markeredgecolor* or *alpha* for the legend handles.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        Returns
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        -------
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        handles : list of `.Line2D`
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            Visual representation of each element of the legend.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        labels : list of str
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            The string labels for elements of the legend.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>...</span>
+</span></span></code></pre></div><p>You can see there is some preamble, then a &lsquo;Parameters&rsquo; section and a &lsquo;Returns&rsquo; section. There&rsquo;s actually several other sections that may be present, and even these two may or may not exist. The above is an example of what I would call a good input to our problem.</p><p>You&rsquo;ll see that the Returns section actually lists two returns, &lsquo;handles&rsquo; and &rsquo;labels&rsquo;. At least for matplotlib, that means a tuple is returned. If you look at the parameters, you can see that there might be a description of the default value; we can discard that we we get the defaults from the signature. There may be multiple types listed, as in:</p><pre tabindex=0><code>        num : int, None, &#34;auto&#34; (default), array-like, or `~.ticker.Locator`
+</code></pre><p>Note the backticks around the last option; numpydoc uses restructured text format so there may be formatting we need to strip out.</p><p>The docstring can specify is an API is deprecated, using text like:</p><pre tabindex=0><code>.. deprecated:: 1.6.0
+          `ndobj_old` will be removed in NumPy 2.0.0, it is replaced by
+          `ndobj_new` because the latter works also with array subclasses.
+</code></pre><p>This is useful if we want to remove such APIs from the stubs (perhaps as a future enhancement).</p><p>Each section title must be underlined with hyphens, and each section is optional. Sections are ordered. The overall format can be illustrated by the below &lsquo;meta-example&rsquo;:</p><pre tabindex=0><code>    One-line summary.
+    
+    Deprecation section.    
+    
+    Extended (multi-line) summary.
+    
+    Parameters
+    ----------
+    x  A parameter with no type info (note no &#39;:&#39;)
+    y : int
+       A parameter with type info
+    z: int, optional
+       An optional keyword parameter (for default see signature)
+    a : bool, default True
+    b : bool, default=True
+    c : bool, default: True
+       Optional keyword parameters with documented defaults.
+       Any of those syntaxes are allowed
+    order : {&#39;first&#39;, &#39;last&#39;}
+       A parameter that can only take on a few values
+    x1, x2 : array_like
+       Two parameters with same types
+    *args : tuple
+       Variable length additional positional arguments
+    **kwargs : dict, optional
+       Additional keyword arguments.
+
+    Attributes
+    ----------
+    Only for class docstrings, describes non-method attributes
+    of the class, in same format as Parameters section.
+    
+    Methods
+    -------
+    For classes with many methods of which only a few
+    are relevant. Format is signature on one line, description indented below.
+    
+    Returns
+    -------
+    int
+       Returned values can take same format as parameters,
+       or can be specified just as a type with no 
+       name. The type must always be specified.
+       
+    Yields
+    ------
+    
+    For generators; takes the same format as the Returns
+    section.
+    
+    Receives
+    --------
+    Parameters passed to a generator’s .send() method.
+    
+    Other Parameters
+    ----------------
+    Infrequently used parameters for functions with
+    large numbers of parameters.
+    
+    Raises
+    ------
+    Which errors get raised and under what conditions.
+    
+    Warns
+    -----
+    Which warnings get raised and under what conditions.    
+    
+    Warnings
+    --------
+    Cautions to the user.
+    
+    See Also
+    --------
+    Other relevant functions.
+    
+    Notes
+    -----
+    Supplementary info like algorithm details
+    
+    References
+    ----------
+    A bibliography section
+    
+    Examples
+    --------
+    Examples of usage.
+    
+</code></pre><p><code>self</code> is not included in the Parameters section of class methods.</p><p>It should be noted that numpydoc is a documentation convention meant for human consumption. This means that while parameters are frequently documented and the documentation includes type information, it is not the same as formal Python type annotations. In order to go from a type described in a numpydoc string to a Python type annotation, we&rsquo;re going to have to do work.</p><h2 id=the-approach>The Approach</h2><p>When I generated the matplotlib stubs, I wrote a parser that was specific to matplot lib. It was hacky and ugly, because I was trying to automate as much as possible. That meant some degree of &lsquo;standardized&rsquo; munging, e.g. where there was more than one type described, separated by &ldquo;,&rdquo; or &ldquo;or&rdquo;, I could turn that into a union. There were a lot of cases that either couldn&rsquo;t be that easily handled or were infrequent enough to not merit spending a lot of time on, and for those I resorted to a mapping in a dictionary.</p><p>I don&rsquo;t want to reuse that ugly code here; I&rsquo;ll try to do something a bit cleaner, but in turn, I&rsquo;m going to rely a lot more on a mapping approach, which requires a human to create the map. But we can help with this process, as well as make it generalize better to other packages, by writing some code to create an initial version of the map. So I am going to tackle the problem in three stages, two of which are automated:</p><ul><li>an &lsquo;analyze&rsquo; stage that extracts all the types, buckets them by frequency, does a best-effort attempt at cleaning them up, and then writes the resulting mapping to a file</li><li>a &lsquo;human in the loop&rsquo; stage where that file is inspected and cleaned up by a human</li><li>an &lsquo;apply&rsquo; stage where we generate stubs using the skeleton we developed in the last post, but making use of the map we created to insert types</li></ul><h2 id=the-analyzer>The Analyzer</h2><h3 id=parsing-the-docstrings>Parsing the Docstrings</h3><p>As I mentioned, I wrote a parser for matplotlib, and while I could use it, its not the cleanest code. And once I learned about numpydoc, Michael Droettboom, the creator of matplotlib and a member of my team, pointed out to me that there is a sphinx extension called &ldquo;napoleon&rdquo; that <a href=https://github.com/sphinx-doc/sphinx/blob/5.x/sphinx/ext/napoleon/docstring.py>parses these docstrings</a>. So I am going to do like all great artists and steal in the code below. An advantage of going this route is that napoleon also supports Google docstring format, so I can easily extend the parser later for that if I choose.</p><p>One of the things I want to do is &rsquo;normalize&rsquo; the types after I extract them. For example, I want to drop the &lsquo;Optional&mldr;&rsquo; part if it exists, because it adds no value if you have the default values in function and method signatures. But because the normalization process is dealing with imperfect data, I want to retain the original text as well, so if I get strange results from normalization I can refer back to the original text. For now I will just add an identity function that does nothing for the normalizer.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>import</span> abc
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> ast <span style=color:#ff79c6>import</span> Num
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> collections
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> re
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> typing <span style=color:#ff79c6>import</span> Any, Callable
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>class</span> <span style=color:#50fa7b>Deque</span>(collections<span style=color:#ff79c6>.</span>deque):
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    A subclass of deque that adds `.Deque.get` and `.Deque.next` methods.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    sentinel <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>object</span>()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>get</span>(self, n: <span style=color:#8be9fd;font-style:italic>int</span>) <span style=color:#ff79c6>-&gt;</span> Any:
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        Return the nth element of the stack, or ``self.sentinel`` if n is
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        greater than the stack size.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> self[n] <span style=color:#ff79c6>if</span> n <span style=color:#ff79c6>&lt;</span> <span style=color:#8be9fd;font-style:italic>len</span>(self) <span style=color:#ff79c6>else</span> self<span style=color:#ff79c6>.</span>sentinel
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>next</span>(self) <span style=color:#ff79c6>-&gt;</span> Any:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> self:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>popleft()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>raise</span> StopIteration
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>class</span> <span style=color:#50fa7b>DocstringParserBase</span>(abc<span style=color:#ff79c6>.</span>ABC):
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#34;&#34;&#34; Methods that are the same in Napoleon for Google format
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        and Numpydoc format I put in this class. That will make 
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        it easier eventually to add Google format support.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    _single_colon_regex <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;(?&lt;!:):(?!:)&#39;</span>)
+</span></span><span style=display:flex><span>    _xref_or_code_regex <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;((?::(?:[a-zA-Z0-9]+[\-_+:.])*[a-zA-Z0-9]+:`.+?`)|&#39;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;(?:``.+?``))&#39;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> __init__(self):
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_attributes <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_parameters <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_returns <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_is_in_section <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_section_indent <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_lines: Deque <span style=color:#ff79c6>=</span> Deque()
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_sections: <span style=color:#8be9fd;font-style:italic>dict</span>[<span style=color:#8be9fd;font-style:italic>str</span>, Callable] <span style=color:#ff79c6>=</span> {}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    @abc<span style=color:#ff79c6>.</span>abstractmethod
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_is_section_break</span>(self) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>...</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    @abc<span style=color:#ff79c6>.</span>abstractmethod
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_is_section_header</span>(self) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>...</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_is_indented</span>(self, line: <span style=color:#8be9fd;font-style:italic>str</span>, indent: <span style=color:#8be9fd;font-style:italic>int</span> <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#34;&#34;&#34; Check if a line is at least &lt;indent&gt; indented &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> i, s <span style=color:#ff79c6>in</span> <span style=color:#8be9fd;font-style:italic>enumerate</span>(line):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> i <span style=color:#ff79c6>&gt;=</span> indent:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>elif</span> <span style=color:#ff79c6>not</span> s<span style=color:#ff79c6>.</span>isspace():
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_get_indent</span>(self, line: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>int</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#34;&#34;&#34; Get indentation for a single line. &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> i, s <span style=color:#ff79c6>in</span> <span style=color:#8be9fd;font-style:italic>enumerate</span>(line):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> s<span style=color:#ff79c6>.</span>isspace():
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> i
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>len</span>(line)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_get_current_indent</span>(self, peek_ahead: <span style=color:#8be9fd;font-style:italic>int</span> <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>int</span>:
+</span></span><span style=display:flex><span>        line <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>get(peek_ahead)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>while</span> line <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>not</span> self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>sentinel:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> line:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> self<span style=color:#ff79c6>.</span>_get_indent(line)
+</span></span><span style=display:flex><span>            peek_ahead <span style=color:#ff79c6>+=</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>            line <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>get(peek_ahead)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_consume_empty</span>(self) <span style=color:#ff79c6>-&gt;</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#34;&#34;&#34; Advance through any empty lines. &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        line <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>get(<span style=color:#bd93f9>0</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>while</span> self<span style=color:#ff79c6>.</span>_lines <span style=color:#ff79c6>and</span> <span style=color:#ff79c6>not</span> line:
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>next()
+</span></span><span style=display:flex><span>            line <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>get(<span style=color:#bd93f9>0</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_consume_indented_block</span>(self, indent: <span style=color:#8be9fd;font-style:italic>int</span> <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>        line <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>get(<span style=color:#bd93f9>0</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>while</span> (
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>not</span> self<span style=color:#ff79c6>.</span>_is_section_break() <span style=color:#ff79c6>and</span> (<span style=color:#ff79c6>not</span> line <span style=color:#ff79c6>or</span> self<span style=color:#ff79c6>.</span>_is_indented(line, indent))
+</span></span><span style=display:flex><span>        ):
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>next()
+</span></span><span style=display:flex><span>            line <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>get(<span style=color:#bd93f9>0</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_consume_to_next_section</span>(self) <span style=color:#ff79c6>-&gt;</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#34;&#34;&#34; Consume a whole section. &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_consume_empty()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>while</span> <span style=color:#ff79c6>not</span> self<span style=color:#ff79c6>.</span>_is_section_break():
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>next()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_consume_section_header</span>(self) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>str</span>:
+</span></span><span style=display:flex><span>        section <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>next()
+</span></span><span style=display:flex><span>        stripped_section <span style=color:#ff79c6>=</span> section<span style=color:#ff79c6>.</span>strip()<span style=color:#ff79c6>.</span>strip(<span style=color:#f1fa8c>&#39;:&#39;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> stripped_section<span style=color:#ff79c6>.</span>lower() <span style=color:#ff79c6>in</span> self<span style=color:#ff79c6>.</span>_sections:
+</span></span><span style=display:flex><span>            section <span style=color:#ff79c6>=</span> stripped_section
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>next() <span style=color:#6272a4># consume ----- part</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> section
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_skip_section</span>(self, section: <span style=color:#8be9fd;font-style:italic>str</span>):
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_consume_to_next_section()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_partition_field_on_colon</span>(self, line: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>str</span>]:
+</span></span><span style=display:flex><span>        before_colon <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>        after_colon <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>        colon <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        found_colon <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> i, source <span style=color:#ff79c6>in</span> <span style=color:#8be9fd;font-style:italic>enumerate</span>(DocstringParserBase<span style=color:#ff79c6>.</span>_xref_or_code_regex<span style=color:#ff79c6>.</span>split(line)):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> found_colon:
+</span></span><span style=display:flex><span>                after_colon<span style=color:#ff79c6>.</span>append(source)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                m <span style=color:#ff79c6>=</span> DocstringParserBase<span style=color:#ff79c6>.</span>_single_colon_regex<span style=color:#ff79c6>.</span>search(source)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>%</span> <span style=color:#bd93f9>2</span>) <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>and</span> m:
+</span></span><span style=display:flex><span>                    found_colon <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>                    colon <span style=color:#ff79c6>=</span> source[m<span style=color:#ff79c6>.</span>start(): m<span style=color:#ff79c6>.</span>end()]
+</span></span><span style=display:flex><span>                    before_colon<span style=color:#ff79c6>.</span>append(source[:m<span style=color:#ff79c6>.</span>start()])
+</span></span><span style=display:flex><span>                    after_colon<span style=color:#ff79c6>.</span>append(source[m<span style=color:#ff79c6>.</span>end():])
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                    before_colon<span style=color:#ff79c6>.</span>append(source)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> (<span style=color:#f1fa8c>&#34;&#34;</span><span style=color:#ff79c6>.</span>join(before_colon)<span style=color:#ff79c6>.</span>strip(),
+</span></span><span style=display:flex><span>                colon,
+</span></span><span style=display:flex><span>                <span style=color:#f1fa8c>&#34;&#34;</span><span style=color:#ff79c6>.</span>join(after_colon)<span style=color:#ff79c6>.</span>strip())
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    @abc<span style=color:#ff79c6>.</span>abstractmethod
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_consume_field</span>(self, prefer_type: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>                       ) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>str</span>]: <span style=color:#ff79c6>...</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_consume_fields</span>(self, parse_type: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>True</span>, prefer_type: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>,
+</span></span><span style=display:flex><span>                        multiple: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>list</span>[<span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>str</span>]]:
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_consume_empty()
+</span></span><span style=display:flex><span>        fields <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>while</span> <span style=color:#ff79c6>not</span> self<span style=color:#ff79c6>.</span>_is_section_break():
+</span></span><span style=display:flex><span>            name, raw, normalized <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_consume_field(prefer_type)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> multiple <span style=color:#ff79c6>and</span> name:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>for</span> n <span style=color:#ff79c6>in</span> name<span style=color:#ff79c6>.</span>split(<span style=color:#f1fa8c>&#34;,&#34;</span>):
+</span></span><span style=display:flex><span>                    fields<span style=color:#ff79c6>.</span>append((n<span style=color:#ff79c6>.</span>strip(), raw, normalized))
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>elif</span> name <span style=color:#ff79c6>or</span> normalized:
+</span></span><span style=display:flex><span>                fields<span style=color:#ff79c6>.</span>append((name, raw, normalized))
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> fields
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    @abc<span style=color:#ff79c6>.</span>abstractmethod
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_parse_returns_section</span>(self, section: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>...</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_parse_attributes_section</span>(self, section: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_attributes <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_consume_fields(multiple<span style=color:#ff79c6>=</span><span style=color:#ff79c6>True</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_parse_parameters_section</span>(self, section: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_parameters <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_consume_fields(multiple<span style=color:#ff79c6>=</span><span style=color:#ff79c6>True</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_prep_parser</span>(self, docstring: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_attributes <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_parameters <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_returns <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_is_in_section <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_section_indent <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_lines <span style=color:#ff79c6>=</span> Deque(<span style=color:#8be9fd;font-style:italic>map</span>(<span style=color:#8be9fd;font-style:italic>str</span><span style=color:#ff79c6>.</span>rstrip, docstring<span style=color:#ff79c6>.</span>splitlines()))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>parse</span>(self, docstring: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>list</span>[<span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>str</span>]]<span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>, <span style=color:#ff79c6>...</span>]:
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_prep_parser(docstring)
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_consume_to_next_section()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>while</span> self<span style=color:#ff79c6>.</span>_lines:
+</span></span><span style=display:flex><span>            section <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_consume_section_header()
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> section:
+</span></span><span style=display:flex><span>                <span style=color:#6272a4># IMO this shouldn&#39;t happen but does; dig into it</span>
+</span></span><span style=display:flex><span>                <span style=color:#6272a4># later</span>
+</span></span><span style=display:flex><span>                self<span style=color:#ff79c6>.</span>_consume_to_next_section()
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_is_in_section <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_section_indent <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_get_current_indent()
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_sections[section<span style=color:#ff79c6>.</span>lower()](section)
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_is_in_section <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_section_indent <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> self<span style=color:#ff79c6>.</span>_parameters, self<span style=color:#ff79c6>.</span>_returns, self<span style=color:#ff79c6>.</span>_attributes
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>class</span> <span style=color:#50fa7b>NumpyDocstringParser</span>(DocstringParserBase):
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    _numpy_section_regex <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^[=\-`:</span><span style=color:#f1fa8c>\&#39;</span><span style=color:#f1fa8c>&#34;~^_*+#&lt;&gt;]{2,}\s*$&#39;</span>)
+</span></span><span style=display:flex><span>    _remove_default_val <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*),[ \t]*default[ \t]*.*$&#39;</span>)
+</span></span><span style=display:flex><span>    _restricted_val <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*){(.*)}(.*)$&#39;</span>)
+</span></span><span style=display:flex><span>    _tuple <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*)\((.*)\)(.*)$&#39;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> __init__(self): 
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>__init__()
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_sections: <span style=color:#8be9fd;font-style:italic>dict</span>[<span style=color:#8be9fd;font-style:italic>str</span>, Callable] <span style=color:#ff79c6>=</span> {
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;attributes&#39;</span>: self<span style=color:#ff79c6>.</span>_parse_attributes_section,
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;examples&#39;</span>: self<span style=color:#ff79c6>.</span>_skip_section,
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;methods&#39;</span>: self<span style=color:#ff79c6>.</span>_skip_section,
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;notes&#39;</span>: self<span style=color:#ff79c6>.</span>_skip_section,
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;other parameters&#39;</span>: self<span style=color:#ff79c6>.</span>_skip_section,
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;parameters&#39;</span>: self<span style=color:#ff79c6>.</span>_parse_parameters_section,
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;receives&#39;</span>: self<span style=color:#ff79c6>.</span>_skip_section,
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;returns&#39;</span>: self<span style=color:#ff79c6>.</span>_parse_returns_section,
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;raises&#39;</span>: self<span style=color:#ff79c6>.</span>_skip_section,
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;references&#39;</span>: self<span style=color:#ff79c6>.</span>_skip_section,
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;see also&#39;</span>: self<span style=color:#ff79c6>.</span>_skip_section,
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;warnings&#39;</span>: self<span style=color:#ff79c6>.</span>_skip_section,
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;warns&#39;</span>: self<span style=color:#ff79c6>.</span>_skip_section,
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#39;yields&#39;</span>: self<span style=color:#ff79c6>.</span>_skip_section,
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    @staticmethod
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_normalize</span>(s: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>str</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> s
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_is_section_header</span>(self) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        section, underline <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>get(<span style=color:#bd93f9>0</span>), self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>get(<span style=color:#bd93f9>1</span>)
+</span></span><span style=display:flex><span>        section <span style=color:#ff79c6>=</span> section<span style=color:#ff79c6>.</span>strip()<span style=color:#ff79c6>.</span>lower()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> section <span style=color:#ff79c6>in</span> self<span style=color:#ff79c6>.</span>_sections:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(underline, <span style=color:#8be9fd;font-style:italic>str</span>):
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>bool</span>(NumpyDocstringParser<span style=color:#ff79c6>.</span>_numpy_section_regex<span style=color:#ff79c6>.</span>match(underline<span style=color:#ff79c6>.</span>strip()))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_is_section_break</span>(self) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        line1, line2 <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>get(<span style=color:#bd93f9>0</span>), self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>get(<span style=color:#bd93f9>1</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> (<span style=color:#ff79c6>not</span> self<span style=color:#ff79c6>.</span>_lines <span style=color:#ff79c6>or</span>
+</span></span><span style=display:flex><span>                self<span style=color:#ff79c6>.</span>_is_section_header() <span style=color:#ff79c6>or</span>
+</span></span><span style=display:flex><span>                [<span style=color:#f1fa8c>&#39;&#39;</span>, <span style=color:#f1fa8c>&#39;&#39;</span>] <span style=color:#ff79c6>==</span> [line1, line2] <span style=color:#ff79c6>or</span>
+</span></span><span style=display:flex><span>                (self<span style=color:#ff79c6>.</span>_is_in_section <span style=color:#ff79c6>and</span>
+</span></span><span style=display:flex><span>                    line1 <span style=color:#ff79c6>and</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>not</span> self<span style=color:#ff79c6>.</span>_is_indented(line1, self<span style=color:#ff79c6>.</span>_section_indent)))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_consume_field</span>(self, prefer_type: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>                       ) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>str</span>]:
+</span></span><span style=display:flex><span>        line <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_lines<span style=color:#ff79c6>.</span>next()
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>        _name, _, _type <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_partition_field_on_colon(line)
+</span></span><span style=display:flex><span>        _name, _type <span style=color:#ff79c6>=</span> _name<span style=color:#ff79c6>.</span>strip(), _type<span style=color:#ff79c6>.</span>strip()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> prefer_type <span style=color:#ff79c6>and</span> <span style=color:#ff79c6>not</span> _type:
+</span></span><span style=display:flex><span>            _type, _name <span style=color:#ff79c6>=</span> _name, _type
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Consume the description</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_consume_indented_block(self<span style=color:#ff79c6>.</span>_get_indent(line) <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> _name, _type, NumpyDocstringParser<span style=color:#ff79c6>.</span>_normalize(_type)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_parse_returns_section</span>(self, section: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_returns <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_consume_fields(prefer_type<span style=color:#ff79c6>=</span><span style=color:#ff79c6>True</span>)
+</span></span></code></pre></div><p>The code is straightforward enough. We can write a simple tester:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>    x <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>&lt;</span>the sample docstring shown earlier<span style=color:#ff79c6>&gt;</span>
+</span></span><span style=display:flex><span>    rtn <span style=color:#ff79c6>=</span> NumpyDocstringParser()<span style=color:#ff79c6>.</span>parse(x)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> i, k <span style=color:#ff79c6>in</span> <span style=color:#8be9fd;font-style:italic>enumerate</span>([<span style=color:#f1fa8c>&#39;Params&#39;</span>, <span style=color:#f1fa8c>&#39;Returns&#39;</span>, <span style=color:#f1fa8c>&#39;Attrs&#39;</span>]):
+</span></span><span style=display:flex><span>        sec <span style=color:#ff79c6>=</span> rtn[i]
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> sec:
+</span></span><span style=display:flex><span>            <span style=color:#8be9fd;font-style:italic>print</span>(k)
+</span></span><span style=display:flex><span>            <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>&#39;-&#39;</span> <span style=color:#ff79c6>*</span> <span style=color:#8be9fd;font-style:italic>len</span>(k))
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (n, r, t) <span style=color:#ff79c6>in</span> sec:
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;  name </span><span style=color:#f1fa8c>{</span>n<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>: type </span><span style=color:#f1fa8c>{</span>t<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span></code></pre></div><p>And we get the output:</p><pre tabindex=0><code>Params
+------
+  name prop: type {&#34;colors&#34;, &#34;sizes&#34;}, default: &#34;colors&#34;
+  name num: type int, None, &#34;auto&#34; (default), array-like, or `~.ticker.Locator`
+  name fmt: type str, `~matplotlib.ticker.Formatter`, or None (default)
+  name func: type function, default: ``lambda x: x``
+  name **kwargs: type 
+Returns
+-------
+  name handles: type list of `.Line2D`
+  name labels: type list of str
+</code></pre><p>Of course, this has just got the raw fields out of the docstring; there&rsquo;s no normalization or conversion to something closer to Python type annotations yet. In the next section we will work on addressing that.</p><h3 id=best-effort-type-cleaning>Best-Effort Type Cleaning</h3><p>Let&rsquo;s first focus on our test case.</p><p>The first thing we can do is throw away anything that starts with &ldquo;, default &mldr;&rdquo;, as we will get the default from the definition itself. For the <code>num</code> parameter, the default was specified differently, by annotating one of the options with &ldquo;(default)&rdquo;, so we can erase that string too. We then are left with comma-separated strings (where the last element is separated by &ldquo;or&rdquo; instead). However, we have the constrained parameter <code>prop</code> that has a list of possible values, and these are comma separated too. Plus some types may be tuples, enclosed in parentheses. So we should start with such compound types and then after that we can turn the lists of types into unions. At least in matplotlib, some types start with &lsquo;.&rsquo; (meaning they are classes defined in the same file, I believe); we can strip those off. And while we&rsquo;re at it, some start with &lsquo;~&rsquo;, which seems redundant too (I&rsquo;m not sure what it is supposed to denote; I&rsquo;ll try find out). Let&rsquo;s update the static method <code>_normalize</code> to <code>NumpyDocstringParser</code> to do all this:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>    remove_default_val <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*),[ \t]*default[ \t]*.*$&#39;</span>)
+</span></span><span style=display:flex><span>    restricted_val <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*){(.*)}(.*)$&#39;</span>)
+</span></span><span style=display:flex><span>    _tuple1 <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*)\((.*)\)(.*)$&#39;</span>)  <span style=color:#6272a4># using ()</span>
+</span></span><span style=display:flex><span>    _tuple2 <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*)\[(.*)\](.*)$&#39;</span>)  <span style=color:#6272a4># using []    </span>
+</span></span><span style=display:flex><span>    @staticmethod
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_normalize</span>(s: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>str</span>:
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Remove , default ... from end</span>
+</span></span><span style=display:flex><span>        m <span style=color:#ff79c6>=</span> NumpyDocstringParser<span style=color:#ff79c6>.</span>_remove_default_val<span style=color:#ff79c6>.</span>match(s)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> m:
+</span></span><span style=display:flex><span>            s <span style=color:#ff79c6>=</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>1</span>)
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Remove (default) from within</span>
+</span></span><span style=display:flex><span>        s <span style=color:#ff79c6>=</span> s<span style=color:#ff79c6>.</span>replace(<span style=color:#f1fa8c>&#39;(default)&#39;</span>, <span style=color:#f1fa8c>&#39;&#39;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Handle a restricted value set</span>
+</span></span><span style=display:flex><span>        m <span style=color:#ff79c6>=</span> NumpyDocstringParser<span style=color:#ff79c6>.</span>_restricted_val<span style=color:#ff79c6>.</span>match(s)
+</span></span><span style=display:flex><span>        l <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> m:
+</span></span><span style=display:flex><span>            s <span style=color:#ff79c6>=</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>+</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>3</span>)
+</span></span><span style=display:flex><span>            l <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;Literal[&#39;</span> <span style=color:#ff79c6>+</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>2</span>) <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;]&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Handle tuples. Right now we can only handle one per line;</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># need to fix that.</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        m <span style=color:#ff79c6>=</span> NumpyDocstringParser<span style=color:#ff79c6>.</span>_tuple1<span style=color:#ff79c6>.</span>match(s)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> m:
+</span></span><span style=display:flex><span>            m <span style=color:#ff79c6>=</span> NumpyDocstringParser<span style=color:#ff79c6>.</span>_tuple2<span style=color:#ff79c6>.</span>match(s)
+</span></span><span style=display:flex><span>        t <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> m:
+</span></span><span style=display:flex><span>            s <span style=color:#ff79c6>=</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>+</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>3</span>)
+</span></span><span style=display:flex><span>            t <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;tuple(&#39;</span> <span style=color:#ff79c6>+</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>2</span>) <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;)&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Now look at list of types. First replace &#39; or &#39; with a comma.</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># This is a bit dangerous as commas may exist elsewhere but </span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># until we find the failure cases we don&#39;t know how to address </span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># them yet.</span>
+</span></span><span style=display:flex><span>        s <span style=color:#ff79c6>=</span> s<span style=color:#ff79c6>.</span>replace(<span style=color:#f1fa8c>&#39; or &#39;</span>, <span style=color:#f1fa8c>&#39;,&#39;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Get the alternatives</span>
+</span></span><span style=display:flex><span>        parts <span style=color:#ff79c6>=</span> s<span style=color:#ff79c6>.</span>split(<span style=color:#f1fa8c>&#39;,&#39;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>normalize_one</span>(s):
+</span></span><span style=display:flex><span>            <span style=color:#f1fa8c>&#34;&#34;&#34; Do some normalizing of a single type. &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>            s <span style=color:#ff79c6>=</span> s<span style=color:#ff79c6>.</span>strip()
+</span></span><span style=display:flex><span>            s <span style=color:#ff79c6>=</span> s<span style=color:#ff79c6>.</span>replace(<span style=color:#f1fa8c>&#39;`&#39;</span>, <span style=color:#f1fa8c>&#39;&#39;</span>)  <span style=color:#6272a4># Removed restructured text junk</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># Handle literal numbers and strings</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> (s<span style=color:#ff79c6>.</span>startswith(<span style=color:#f1fa8c>&#39;&#34;&#39;</span>) <span style=color:#ff79c6>or</span> s<span style=color:#ff79c6>.</span>startswith(<span style=color:#f1fa8c>&#34;&#39;&#34;</span>)):
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#8be9fd;font-style:italic>float</span>(s)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>except</span> ValueError:
+</span></span><span style=display:flex><span>                    <span style=color:#6272a4># Handle lists</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>if</span> s<span style=color:#ff79c6>.</span>startswith(<span style=color:#f1fa8c>&#39;list of &#39;</span>):
+</span></span><span style=display:flex><span>                        s <span style=color:#ff79c6>=</span> s[<span style=color:#bd93f9>8</span>:]
+</span></span><span style=display:flex><span>                        <span style=color:#ff79c6>if</span> s<span style=color:#ff79c6>.</span>startswith(<span style=color:#f1fa8c>&#39;.&#39;</span>) <span style=color:#ff79c6>or</span> s<span style=color:#ff79c6>.</span>startswith(<span style=color:#f1fa8c>&#39;~&#39;</span>):
+</span></span><span style=display:flex><span>                            s <span style=color:#ff79c6>=</span> s[<span style=color:#bd93f9>1</span>:]
+</span></span><span style=display:flex><span>                        <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;list[&#39;</span> <span style=color:#ff79c6>+</span> s <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;]&#39;</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>while</span> s<span style=color:#ff79c6>.</span>startswith(<span style=color:#f1fa8c>&#39;.&#39;</span>) <span style=color:#ff79c6>or</span> s<span style=color:#ff79c6>.</span>startswith(<span style=color:#f1fa8c>&#39;~&#39;</span>):
+</span></span><span style=display:flex><span>                        s <span style=color:#ff79c6>=</span> s[<span style=color:#bd93f9>1</span>:]
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>return</span> s
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;Literal[&#39;</span> <span style=color:#ff79c6>+</span> s <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;]&#39;</span>
+</span></span><span style=display:flex><span>            
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Create a union from the normalized alternatives</span>
+</span></span><span style=display:flex><span>        s <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;|&#39;</span><span style=color:#ff79c6>.</span>join(normalize_one(p) <span style=color:#ff79c6>for</span> p <span style=color:#ff79c6>in</span> parts <span style=color:#ff79c6>if</span> p<span style=color:#ff79c6>.</span>strip())
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Add back our constrained value literal, if it exists</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> s <span style=color:#ff79c6>and</span> l:
+</span></span><span style=display:flex><span>            s <span style=color:#ff79c6>+=</span> <span style=color:#f1fa8c>&#39;|&#39;</span> <span style=color:#ff79c6>+</span> l
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>elif</span> l:
+</span></span><span style=display:flex><span>            s <span style=color:#ff79c6>=</span> l
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Add back our tuple, if it exists</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> s <span style=color:#ff79c6>and</span> t:
+</span></span><span style=display:flex><span>            s <span style=color:#ff79c6>+=</span> <span style=color:#f1fa8c>&#39;|&#39;</span> <span style=color:#ff79c6>+</span> t
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>elif</span> t:
+</span></span><span style=display:flex><span>            s <span style=color:#ff79c6>=</span> t
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> s
+</span></span></code></pre></div><p>It&rsquo;s not a thing of beauty at all, and I&rsquo;m not proud of it, but it&rsquo;s a good start for us to explore in more detail what other cases there might be. With a one line change to the print statement in our test runner, we can see the new output:</p><pre tabindex=0><code>Params
+------
+  name prop: raw {&#34;colors&#34;, &#34;sizes&#34;}, default: &#34;colors&#34;, normalized Literal[&#34;colors&#34;, &#34;sizes&#34;]
+  name num: raw int, None, &#34;auto&#34; (default), array-like, or `~.ticker.Locator`, normalized int|None|Literal[&#34;auto&#34;]|array-like|ticker.Locator
+  name fmt: raw str, `~matplotlib.ticker.Formatter`, or None (default), normalized str|matplotlib.ticker.Formatter|None
+  name func: raw function, default: ``lambda x: x``, normalized function
+  name **kwargs: raw , normalized 
+Returns
+-------
+  name handles: raw list of `.Line2D`, normalized list[Line2D]
+  name labels: raw list of str, normalized list[str]
+</code></pre><p>In order to figure out how best to proceed from here, its time to gather more data than we got from just our simple example.</p><h3 id=writing-the-map-file>Writing the Map File</h3><p>For the map file, we are going to import a module, look at all of the docstrings, pull out the normalized types, split them on &lsquo;|&rsquo; if they are unions, and add them to a set where we also maintain counts. We can then output this in order of frequency. This will quickly give us much more data to look at to see what we are dealing with.</p><p>First, let&rsquo;s refactor our earlier <code>stub_module</code> method to extract a useful utility we will need again. I&rsquo;ve enhanced it at the same time to be able to do per-file outputs (like the stub files) or per-module outputs (which we will use for analysis). In the latter case we will maintain a state object that we post-process at the end:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>import</span> glob
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> importlib
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> inspect
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> os
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> types <span style=color:#ff79c6>import</span> ModuleType
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> typing <span style=color:#ff79c6>import</span> Callable
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>get_module_and_files</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[ModuleType<span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>, <span style=color:#8be9fd;font-style:italic>list</span>[<span style=color:#8be9fd;font-style:italic>str</span>]]:
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>        mod <span style=color:#ff79c6>=</span> importlib<span style=color:#ff79c6>.</span>import_module(m)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>except</span> Exception <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;Could not import module </span><span style=color:#f1fa8c>{</span>m<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>: </span><span style=color:#f1fa8c>{</span>e<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>None</span>, []
+</span></span><span style=display:flex><span>    file <span style=color:#ff79c6>=</span> inspect<span style=color:#ff79c6>.</span>getfile(mod)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> file<span style=color:#ff79c6>.</span>endswith(<span style=color:#f1fa8c>&#34;/__init__.py&#34;</span>):
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Get the parent directory and all the files in that directory</span>
+</span></span><span style=display:flex><span>        folder <span style=color:#ff79c6>=</span> file[:<span style=color:#ff79c6>-</span><span style=color:#bd93f9>12</span>]
+</span></span><span style=display:flex><span>        files <span style=color:#ff79c6>=</span> glob<span style=color:#ff79c6>.</span>glob(folder <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#34;/*.py&#34;</span>)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>        files <span style=color:#ff79c6>=</span> [file]
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> mod, files
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>process_module</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>, processor: Callable, 
+</span></span><span style=display:flex><span>        targeter: Callable,
+</span></span><span style=display:flex><span>        post_processor: Callable<span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>, 
+</span></span><span style=display:flex><span>        state: <span style=color:#8be9fd;font-style:italic>object</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>,
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>**</span>kwargs):
+</span></span><span style=display:flex><span>    mod, files <span style=color:#ff79c6>=</span> get_module_and_files(m)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> mod:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    result <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> state <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>        state <span style=color:#ff79c6>=</span> {}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> file <span style=color:#ff79c6>in</span> files:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>with</span> <span style=color:#8be9fd;font-style:italic>open</span>(file) <span style=color:#ff79c6>as</span> f:
+</span></span><span style=display:flex><span>                source <span style=color:#ff79c6>=</span> f<span style=color:#ff79c6>.</span>read()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>except</span> Exception <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>            <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;Failed to read </span><span style=color:#f1fa8c>{</span>file<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>: </span><span style=color:#f1fa8c>{</span>e<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#34;</span>)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        result <span style=color:#ff79c6>=</span> processor(mod, file, source, state, <span style=color:#ff79c6>**</span>kwargs)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> post_processor <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> result <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;Failed to process </span><span style=color:#f1fa8c>{</span>file<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#34;</span>)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                target <span style=color:#ff79c6>=</span> targeter(file)
+</span></span><span style=display:flex><span>                folder <span style=color:#ff79c6>=</span> target[: target<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#34;/&#34;</span>)]
+</span></span><span style=display:flex><span>                os<span style=color:#ff79c6>.</span>makedirs(folder, exist_ok<span style=color:#ff79c6>=</span><span style=color:#ff79c6>True</span>)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>with</span> <span style=color:#8be9fd;font-style:italic>open</span>(target, <span style=color:#f1fa8c>&#34;w&#34;</span>) <span style=color:#ff79c6>as</span> f:
+</span></span><span style=display:flex><span>                    f<span style=color:#ff79c6>.</span>write(result)
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;Processed file </span><span style=color:#f1fa8c>{</span>file<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> post_processor:
+</span></span><span style=display:flex><span>        result <span style=color:#ff79c6>=</span> post_processor(m, state)
+</span></span><span style=display:flex><span>        target <span style=color:#ff79c6>=</span> targeter(m)
+</span></span><span style=display:flex><span>        folder <span style=color:#ff79c6>=</span> target[: target<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#34;/&#34;</span>)]
+</span></span><span style=display:flex><span>        os<span style=color:#ff79c6>.</span>makedirs(folder, exist_ok<span style=color:#ff79c6>=</span><span style=color:#ff79c6>True</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>with</span> <span style=color:#8be9fd;font-style:italic>open</span>(target, <span style=color:#f1fa8c>&#34;w&#34;</span>) <span style=color:#ff79c6>as</span> f:
+</span></span><span style=display:flex><span>            f<span style=color:#ff79c6>.</span>write(result)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>`stub_module` then becomes:
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>```python
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_stub</span>(mod: ModuleType, fname: <span style=color:#8be9fd;font-style:italic>str</span>, source: <span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#ff79c6>**</span>kwargs):
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> patch_source(source, <span style=color:#ff79c6>**</span>kwargs)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_targeter</span>(fname: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>str</span>:
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#34;typings/&#34;</span> <span style=color:#ff79c6>+</span> fname[fname<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#34;/site-packages/&#34;</span>) <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>15</span> :] <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#34;i&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>stub_module</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>, strip_defaults: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>):
+</span></span><span style=display:flex><span>    process_module(m, _stub, _targeter, strip_defaults<span style=color:#ff79c6>=</span>strip_defaults)
+</span></span></code></pre></div><p>We&rsquo;re also going to want to keep track of function and class nesting in the new transformer so let&rsquo;s extract that out to a new base clase all our transformers can inherit from.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>import</span> libcst <span style=color:#ff79c6>as</span> cst
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>class</span> <span style=color:#50fa7b>BaseTransformer</span>(cst<span style=color:#ff79c6>.</span>CSTTransformer):
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> __init__(self, strip_defaults<span style=color:#ff79c6>=</span><span style=color:#ff79c6>False</span>):
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_in_class_count <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_in_function_count <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>in_class</span>(self)<span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> self<span style=color:#ff79c6>.</span>_in_class_count <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>in_function</span>(self)<span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> self<span style=color:#ff79c6>.</span>_in_function_count <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>at_top_level</span>(self):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>not</span>(self<span style=color:#ff79c6>.</span>in_class() <span style=color:#ff79c6>or</span> self<span style=color:#ff79c6>.</span>in_function())
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>at_top_level_class_level</span>(self) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> self<span style=color:#ff79c6>.</span>_in_class_count <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>and</span> <span style=color:#ff79c6>not</span> self<span style=color:#ff79c6>.</span>in_function()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>in_method</span>(self) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Strictly speaking this can happen if we define a class</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># in a top-level function too.</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># TODO: figure out how to detect that. It probably</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># doesn&#39;t matter though so punting for now.</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> self<span style=color:#ff79c6>.</span>in_class() <span style=color:#ff79c6>and</span> self<span style=color:#ff79c6>.</span>in_function()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>at_top_level_function_level</span>(self) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>not</span> self<span style=color:#ff79c6>.</span>in_class() <span style=color:#ff79c6>and</span> self<span style=color:#ff79c6>.</span>_in_function_count <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>visit_ClassDef</span>(self, node: cst<span style=color:#ff79c6>.</span>ClassDef) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>assert</span>(self<span style=color:#ff79c6>.</span>_in_class_count <span style=color:#ff79c6>&lt;=</span> <span style=color:#bd93f9>1</span>)
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_in_class_count <span style=color:#ff79c6>+=</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># No point recursing if we are at nested function level</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># or this is a nested class.</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> self<span style=color:#ff79c6>.</span>_in_class_count <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>leave_ClassDef</span>(self, original_node: cst<span style=color:#ff79c6>.</span>ClassDef, updated_node: cst<span style=color:#ff79c6>.</span>ClassDef) <span style=color:#ff79c6>-&gt;</span> cst<span style=color:#ff79c6>.</span>CSTNode:
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_in_class_count <span style=color:#ff79c6>-=</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> updated_node
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>visit_FunctionDef</span>(self, node: cst<span style=color:#ff79c6>.</span>FunctionDef) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>assert</span>(self<span style=color:#ff79c6>.</span>_in_function_count <span style=color:#ff79c6>&lt;=</span> <span style=color:#bd93f9>1</span>)
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_in_function_count <span style=color:#ff79c6>+=</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># No point recursing if we are at nested function level</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> self<span style=color:#ff79c6>.</span>_in_function_count <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>leave_FunctionDef</span>(
+</span></span><span style=display:flex><span>        self, original_node: cst<span style=color:#ff79c6>.</span>FunctionDef, updated_node: cst<span style=color:#ff79c6>.</span>FunctionDef
+</span></span><span style=display:flex><span>    ) <span style=color:#ff79c6>-&gt;</span> cst<span style=color:#ff79c6>.</span>CSTNode:
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_in_function_count <span style=color:#ff79c6>-=</span> <span style=color:#bd93f9>1</span>  
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> updated_node
+</span></span></code></pre></div><p>Now we can create the analyzer. I could just have used importlib to import the module and then introspected to find all the docstrings, but I&rsquo;m still going to lean on LibCST; that may be useful later and if nothing else makes it easy to switch between writing map files at the file level or the module level (although we may only need the module level; in fact we&rsquo;ll probably end up doing mapping at the package level eventually).</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>from</span> ast <span style=color:#ff79c6>import</span> Num
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> collections <span style=color:#ff79c6>import</span> Counter
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> inspect
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> types <span style=color:#ff79c6>import</span> ModuleType
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> libcst <span style=color:#ff79c6>as</span> cst
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> .basetransformer <span style=color:#ff79c6>import</span> BaseTransformer
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> .utils <span style=color:#ff79c6>import</span> process_module
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> .parser <span style=color:#ff79c6>import</span> NumpyDocstringParser
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>class</span> <span style=color:#50fa7b>AnalyzingTransformer</span>(BaseTransformer):
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> __init__(self, mod: ModuleType, fname: <span style=color:#8be9fd;font-style:italic>str</span>, counter: Counter, context: <span style=color:#8be9fd;font-style:italic>dict</span>):
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>__init__()
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_mod <span style=color:#ff79c6>=</span> mod
+</span></span><span style=display:flex><span>        i <span style=color:#ff79c6>=</span> fname<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#39;site-packages&#39;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> i <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span>:
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># Strip off the irrelevant part of the path</span>
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_fname <span style=color:#ff79c6>=</span> fname[i<span style=color:#ff79c6>+</span><span style=color:#bd93f9>14</span>:]
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_fname <span style=color:#ff79c6>=</span> fname
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_classname <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_parser <span style=color:#ff79c6>=</span> NumpyDocstringParser()
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_counter <span style=color:#ff79c6>=</span> counter
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_context <span style=color:#ff79c6>=</span> context
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_analyze_obj</span>(self, obj, context: <span style=color:#8be9fd;font-style:italic>str</span>):
+</span></span><span style=display:flex><span>        doc <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> obj:
+</span></span><span style=display:flex><span>            doc <span style=color:#ff79c6>=</span> inspect<span style=color:#ff79c6>.</span>getdoc(obj)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> doc:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span>
+</span></span><span style=display:flex><span>        rtn <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_parser<span style=color:#ff79c6>.</span>parse(doc)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> section <span style=color:#ff79c6>in</span> rtn:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> section:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>for</span> _, raw, typs <span style=color:#ff79c6>in</span> section:
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>for</span> typ <span style=color:#ff79c6>in</span> typs<span style=color:#ff79c6>.</span>split(<span style=color:#f1fa8c>&#39;|&#39;</span>):
+</span></span><span style=display:flex><span>                        <span style=color:#ff79c6>if</span> typ <span style=color:#ff79c6>not</span> <span style=color:#ff79c6>in</span> self<span style=color:#ff79c6>.</span>_context:
+</span></span><span style=display:flex><span>                            self<span style=color:#ff79c6>.</span>_context[typ] <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>self<span style=color:#ff79c6>.</span>_fname<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>:</span><span style=color:#f1fa8c>{</span>context<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c> </span><span style=color:#f1fa8c>{</span>raw<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>
+</span></span><span style=display:flex><span>                        self<span style=color:#ff79c6>.</span>_counter[typ] <span style=color:#ff79c6>+=</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    @staticmethod
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>get_top_level_obj</span>(mod: ModuleType, fname: <span style=color:#8be9fd;font-style:italic>str</span>, oname: <span style=color:#8be9fd;font-style:italic>str</span>):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> mod<span style=color:#ff79c6>.</span>__dict__[oname]
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>except</span> KeyError <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>                submod <span style=color:#ff79c6>=</span> fname[fname<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#39;/&#39;</span>)<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>:<span style=color:#ff79c6>-</span><span style=color:#bd93f9>3</span>]
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> mod<span style=color:#ff79c6>.</span>__dict__[submod]<span style=color:#ff79c6>.</span>__dict__[oname]
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>except</span> Exception:
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>fname<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>: Could not get obj for </span><span style=color:#f1fa8c>{</span>oname<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>visit_ClassDef</span>(self, node: cst<span style=color:#ff79c6>.</span>ClassDef) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> self<span style=color:#ff79c6>.</span>at_top_level():
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_classname <span style=color:#ff79c6>=</span> node<span style=color:#ff79c6>.</span>name<span style=color:#ff79c6>.</span>value
+</span></span><span style=display:flex><span>            obj <span style=color:#ff79c6>=</span> AnalyzingTransformer<span style=color:#ff79c6>.</span>get_top_level_obj(self<span style=color:#ff79c6>.</span>_mod, self<span style=color:#ff79c6>.</span>_fname, node<span style=color:#ff79c6>.</span>name<span style=color:#ff79c6>.</span>value)
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_analyze_obj(obj, self<span style=color:#ff79c6>.</span>_classname)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>visit_ClassDef(node)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>visit_FunctionDef</span>(self, node: cst<span style=color:#ff79c6>.</span>FunctionDef) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        name <span style=color:#ff79c6>=</span> node<span style=color:#ff79c6>.</span>name<span style=color:#ff79c6>.</span>value
+</span></span><span style=display:flex><span>        obj <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        context <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> self<span style=color:#ff79c6>.</span>at_top_level():
+</span></span><span style=display:flex><span>            context <span style=color:#ff79c6>=</span> name
+</span></span><span style=display:flex><span>            obj <span style=color:#ff79c6>=</span> AnalyzingTransformer<span style=color:#ff79c6>.</span>get_top_level_obj(self<span style=color:#ff79c6>.</span>_mod, self<span style=color:#ff79c6>.</span>_fname, name)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>elif</span> self<span style=color:#ff79c6>.</span>at_top_level_class_level():
+</span></span><span style=display:flex><span>            context <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>self<span style=color:#ff79c6>.</span>_classname<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>.</span><span style=color:#f1fa8c>{</span>name<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>
+</span></span><span style=display:flex><span>            parent <span style=color:#ff79c6>=</span> AnalyzingTransformer<span style=color:#ff79c6>.</span>get_top_level_obj(self<span style=color:#ff79c6>.</span>_mod, self<span style=color:#ff79c6>.</span>_fname, self<span style=color:#ff79c6>.</span>_classname)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> parent:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> name <span style=color:#ff79c6>in</span> parent<span style=color:#ff79c6>.</span>__dict__:
+</span></span><span style=display:flex><span>                    obj <span style=color:#ff79c6>=</span> parent<span style=color:#ff79c6>.</span>__dict__[name]
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>self<span style=color:#ff79c6>.</span>_fname<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>: Could not get obj for </span><span style=color:#f1fa8c>{</span>self<span style=color:#ff79c6>.</span>_classname<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>.</span><span style=color:#f1fa8c>{</span>name<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_analyze_obj(obj, context)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>visit_FunctionDef(node)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_analyze</span>(mod: ModuleType, fname: <span style=color:#8be9fd;font-style:italic>str</span>, source: <span style=color:#8be9fd;font-style:italic>str</span>, state: <span style=color:#8be9fd;font-style:italic>tuple</span>, <span style=color:#ff79c6>**</span>kwargs):
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>        cstree <span style=color:#ff79c6>=</span> cst<span style=color:#ff79c6>.</span>parse_module(source)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>except</span> Exception <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>        patcher <span style=color:#ff79c6>=</span> AnalyzingTransformer(mod, fname, counter<span style=color:#ff79c6>=</span>state[<span style=color:#bd93f9>0</span>], context<span style=color:#ff79c6>=</span>state[<span style=color:#bd93f9>1</span>])
+</span></span><span style=display:flex><span>        cstree<span style=color:#ff79c6>.</span>visit(patcher)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>except</span>:  <span style=color:#6272a4># Exception as e:</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Note: I know that e is undefined below; this actually lets me</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># successfully see the stack trace from the original excception</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># as traceback.print_exc() was not working for me.</span>
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;Failed to analyze file: </span><span style=color:#f1fa8c>{</span>e<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#34;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> state
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_post_process</span>(m: ModuleType, state: <span style=color:#8be9fd;font-style:italic>tuple</span>):
+</span></span><span style=display:flex><span>    result <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>    freq: Counter <span style=color:#ff79c6>=</span> state[<span style=color:#bd93f9>0</span>]
+</span></span><span style=display:flex><span>    context: <span style=color:#8be9fd;font-style:italic>dict</span> <span style=color:#ff79c6>=</span> state[<span style=color:#bd93f9>1</span>]
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> typ, cnt <span style=color:#ff79c6>in</span> freq<span style=color:#ff79c6>.</span>most_common():
+</span></span><span style=display:flex><span>        result <span style=color:#ff79c6>+=</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>cnt<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>#</span><span style=color:#f1fa8c>{</span>context[typ]<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>#</span><span style=color:#f1fa8c>{</span>typ<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>#</span><span style=color:#f1fa8c>{</span>typ<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#39;</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> result
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_targeter</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>str</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#34;&#34;&#34; Turn module name into map file name &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;analysis/</span><span style=color:#f1fa8c>{</span>m<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>.typ&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>analyze_module</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>):
+</span></span><span style=display:flex><span>    process_module(m, _analyze, _targeter, post_processor<span style=color:#ff79c6>=</span>_post_process, 
+</span></span><span style=display:flex><span>        state<span style=color:#ff79c6>=</span>(Counter(), {}))
+</span></span></code></pre></div><h2 id=testing-the-analysis>Testing the Analysis</h2><p>We can now run this on a module. Below is the output from analyzing <code>matplotlib.axes</code>. Each line is a count followed by the type. The type appears twice because this is a mapping file; later we will have the opportunity to edit this file to remap the types before they get injected.</p><pre tabindex=0><code>149#matplotlib/axes/_axes.py:Axes.set_title float, default: :rc:`axes.titley`#float#float
+125#matplotlib/axes/_axes.py:Axes.legend sequence of `.Artist`, optional#optional#optional
+109#matplotlib/axes/_axes.py:Axes.annotate bool or None, default: None#bool#bool
+84#matplotlib/axes/_axes.py:Axes.hlines float or array-like#array-like#array-like
+42#matplotlib/axes/_axes.py:Axes.get_title {&#39;center&#39;, &#39;left&#39;, &#39;right&#39;}, str, default: &#39;center&#39;#str#str
+37#matplotlib/axes/_axes.py:Axes.annotate bool or None, default: None#None#None
+35#matplotlib/axes/_axes.py:Axes.acorr int, default: 10#int#int
+23#matplotlib/axes/_axes.py:Axes.set_title dict#dict#dict
+19#matplotlib/axes/_axes.py:Axes.inset_axes ##
+19#matplotlib/axes/_axes.py:Axes.psd 1-D array or sequence#1-D array#1-D array
+18#matplotlib/axes/_axes.py:Axes.annotate str or `.Artist` or `.Transform` or callable or (float, float), default: &#39;data&#39;#callable#callable
+16#matplotlib/axes/_axes.py:Axes.indicate_inset color, default: &#39;none&#39;#color#color
+16#matplotlib/axes/_axes.py:Axes.acorr array (length ``2*maxlags+1``)#array#array
+14#matplotlib/axes/_axes.py:Axes.annotate (float, float)#tuple(float, float)#tuple(float, float)
+13#matplotlib/axes/_axes.py:Axes.quiver 1D or 2D array-like, optional#2D array-like#2D array-like
+12#matplotlib/axes/_axes.py:Axes._fill_between_x_or_y array (length N)#tuple(length N)#tuple(length N)
+10#matplotlib/axes/_axes.py:Axes.plot array-like or scalar#scalar#scalar
+10#matplotlib/axes/_axes.py:Axes.loglog sequence, optional#sequence#sequence
+10#matplotlib/axes/_axes.py:Axes.quiver 1D or 2D array-like, optional#1D#1D
+8#matplotlib/axes/_axes.py:Axes.inset_axes `.Transform`#Transform#Transform
+8#matplotlib/axes/_axes.py:Axes.eventplot indexable object, optional#indexable object#indexable object
+8#matplotlib/axes/_axes.py:Axes.errorbar float or array-like, shape(N,) or shape(2, N), optional#shape#shape
+7#matplotlib/axes/_axes.py:Axes.axhline `~matplotlib.lines.Line2D`#matplotlib.lines.Line2D#matplotlib.lines.Line2D
+7#matplotlib/axes/_axes.py:Axes.psd callable or ndarray, default: `.window_hanning`#ndarray#ndarray
+7#matplotlib/axes/_axes.py:Axes.psd {&#39;default&#39;, &#39;onesided&#39;, &#39;twosided&#39;}, optional#Literal[&#39;default&#39;, &#39;onesided&#39;, &#39;twosided&#39;]#Literal[&#39;default&#39;, &#39;onesided&#39;, &#39;twosided&#39;]
+6#matplotlib/axes/_axes.py:Axes.get_title {&#39;center&#39;, &#39;left&#39;, &#39;right&#39;}, str, default: &#39;center&#39;#Literal[&#39;center&#39;, &#39;left&#39;, &#39;right&#39;]#Literal[&#39;center&#39;, &#39;left&#39;, &#39;right&#39;]
+6#matplotlib/axes/_axes.py:Axes.axline `.Line2D`#Line2D#Line2D
+6#matplotlib/axes/_axes.py:Axes.eventplot str or tuple or list of such values, default: &#39;solid&#39;#tuple#tuple
+6#matplotlib/axes/_axes.py:Axes.plot list of `.Line2D`#list[Line2D]#list[Line2D]
+6#matplotlib/axes/_axes.py:Axes.pie list, default: None#list#list
+6#matplotlib/axes/_axes.py:Axes.scatter float or array-like, shape (n, )#tuple(n, )#tuple(n, )
+5#matplotlib/axes/_axes.py:Axes.scatter str or `~matplotlib.colors.Colormap`, default: :rc:`image.cmap`#matplotlib.colors.Colormap#matplotlib.colors.Colormap
+5#matplotlib/axes/_axes.py:Axes.scatter `~matplotlib.colors.Normalize`, default: None#matplotlib.colors.Normalize#matplotlib.colors.Normalize
+4#matplotlib/axes/_axes.py:Axes.indicate_inset `.Axes`#Axes#Axes
+4#matplotlib/axes/_axes.py:Axes.hlines list of colors, default: :rc:`lines.color`#list[colors]#list[colors]
+4#matplotlib/axes/_axes.py:Axes.acorr array (length ``2*maxlags+1``)#tuple(length ``2*maxlags+1``)#tuple(length ``2*maxlags+1``)
+4#matplotlib/axes/_axes.py:Axes.bar `.BarContainer`#BarContainer#BarContainer
+4#matplotlib/axes/_axes.py:Axes.contour (M, N) array-like#tuple(M, N)#tuple(M, N)
+4#matplotlib/axes/_axes.py:Axes.psd {&#39;none&#39;, &#39;mean&#39;, &#39;linear&#39;} or callable, default: &#39;none&#39;#Literal[&#39;none&#39;, &#39;mean&#39;, &#39;linear&#39;]#Literal[&#39;none&#39;, &#39;mean&#39;, &#39;linear&#39;]
+4#matplotlib/axes/_base.py:_AxesBase.get_xaxis_text1_transform {&#39;center&#39;, &#39;top&#39;, &#39;bottom&#39;, &#39;baseline&#39;, &#39;center_baseline&#39;}#Literal[&#39;center&#39;, &#39;top&#39;, &#39;bottom&#39;, &#39;baseline&#39;, &#39;center_baseline&#39;]#Literal[&#39;center&#39;, &#39;top&#39;, &#39;bottom&#39;, &#39;baseline&#39;, &#39;center_baseline&#39;]
+3#matplotlib/axes/_axes.py:Axes `.Bbox`#Bbox#Bbox
+3#matplotlib/axes/_axes.py:Axes.secondary_xaxis {&#39;top&#39;, &#39;bottom&#39;, &#39;left&#39;, &#39;right&#39;} or float#Literal[&#39;top&#39;, &#39;bottom&#39;, &#39;left&#39;, &#39;right&#39;]#Literal[&#39;top&#39;, &#39;bottom&#39;, &#39;left&#39;, &#39;right&#39;]
+3#matplotlib/axes/_axes.py:Axes.secondary_xaxis 2-tuple of func, or Transform with an inverse#2-tuple of func#2-tuple of func
+3#matplotlib/axes/_axes.py:Axes.loglog {&#39;mask&#39;, &#39;clip&#39;}, default: &#39;mask&#39;#Literal[&#39;mask&#39;, &#39;clip&#39;]#Literal[&#39;mask&#39;, &#39;clip&#39;]
+3#matplotlib/axes/_axes.py:Axes.step {&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}, default: &#39;pre&#39;#Literal[&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;]#Literal[&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;]
+3#matplotlib/axes/_axes.py:Axes._parse_scatter_color_args color or sequence or sequence of color or None#sequence of color#sequence of color
+3#matplotlib/axes/_axes.py:Axes.quiver color or color sequence, optional#color sequence#color sequence
+3#matplotlib/axes/_axes.py:Axes._fill_between_x_or_y array of bool (length N), optional#array of bool#array of bool
+3#matplotlib/axes/_axes.py:Axes._fill_between_x_or_y `.PolyCollection`#PolyCollection#PolyCollection
+3#matplotlib/axes/_axes.py:Axes.imshow `~matplotlib.image.AxesImage`#matplotlib.image.AxesImage#matplotlib.image.AxesImage
+3#matplotlib/axes/_base.py:_AxesBase.__init__ `~.axes.Axes`, optional#axes.Axes#axes.Axes
+3#matplotlib/axes/_base.py:_AxesBase.autoscale {&#39;both&#39;, &#39;x&#39;, &#39;y&#39;}, default: &#39;both&#39;#Literal[&#39;both&#39;, &#39;x&#39;, &#39;y&#39;]#Literal[&#39;both&#39;, &#39;x&#39;, &#39;y&#39;]
+2#matplotlib/axes/_axes.py:Axes.set_title `.Text`#Text#Text
+2#matplotlib/axes/_axes.py:Axes.legend list of str, optional#list[str]#list[str]
+2#matplotlib/axes/_axes.py:Axes.inset_axes [x0, y0, width, height]#tuple(x0, y0, width, height)#tuple(x0, y0, width, height)
+2#matplotlib/axes/_axes.py:Axes.indicate_inset `.patches.Rectangle`#patches.Rectangle#patches.Rectangle
+2#matplotlib/axes/_axes.py:Axes.indicate_inset 4-tuple of `.patches.ConnectionPatch`#4-tuple of .patches.ConnectionPatch#4-tuple of .patches.ConnectionPatch
+2#matplotlib/axes/_axes.py:Axes.secondary_xaxis 2-tuple of func, or Transform with an inverse#Transform with an inverse#Transform with an inverse
+2#matplotlib/axes/_axes.py:Axes.secondary_xaxis axes._secondary_axes.SecondaryAxis#axes._secondary_axes.SecondaryAxis#axes._secondary_axes.SecondaryAxis
+2#matplotlib/axes/_axes.py:Axes.annotate str or `.Artist` or `.Transform` or callable or (float, float), default: &#39;data&#39;#Artist#Artist
+2#matplotlib/axes/_axes.py:Axes.axhspan `~matplotlib.patches.Polygon`#matplotlib.patches.Polygon#matplotlib.patches.Polygon
+2#matplotlib/axes/_axes.py:Axes.hlines {&#39;solid&#39;, &#39;dashed&#39;, &#39;dashdot&#39;, &#39;dotted&#39;}, optional#Literal[&#39;solid&#39;, &#39;dashed&#39;, &#39;dashdot&#39;, &#39;dotted&#39;]#Literal[&#39;solid&#39;, &#39;dashed&#39;, &#39;dashdot&#39;, &#39;dotted&#39;]
+2#matplotlib/axes/_axes.py:Axes.hlines `~matplotlib.collections.LineCollection`#matplotlib.collections.LineCollection#matplotlib.collections.LineCollection
+2#matplotlib/axes/_axes.py:Axes.acorr `.LineCollection` or `.Line2D`#LineCollection#LineCollection
+2#matplotlib/axes/_axes.py:Axes.xcorr array-like of length n#array-like of length n#array-like of length n
+2#matplotlib/axes/_axes.py:Axes.bar {&#39;center&#39;, &#39;edge&#39;}, default: &#39;center&#39;#Literal[&#39;center&#39;, &#39;edge&#39;]#Literal[&#39;center&#39;, &#39;edge&#39;]
+2#matplotlib/axes/_axes.py:Axes.pie 1D array-like#1D array-like#1D array-like
+2#matplotlib/axes/_axes.py:Axes.errorbar float or array-like, shape(N,) or shape(2, N), optional#shape(N#shape(N
+2#matplotlib/axes/_axes.py:Axes.errorbar float or array-like, shape(N,) or shape(2, N), optional#)#)
+2#matplotlib/axes/_axes.py:Axes.errorbar float or array-like, shape(N,) or shape(2, N), optional#tuple(2, N)#tuple(2, N)
+2#matplotlib/axes/_axes.py:Axes.errorbar int or (int, int), default: 1#tuple(int, int)#tuple(int, int)
+2#matplotlib/axes/_axes.py:Axes.boxplot Array or a sequence of vectors.#Array#Array
+2#matplotlib/axes/_axes.py:Axes.boxplot Array or a sequence of vectors.#a sequence of vectors.#a sequence of vectors.
+2#matplotlib/axes/_axes.py:Axes.bxp list of dicts#list[dicts]#list[dicts]
+2#matplotlib/axes/_axes.py:Axes.hexbin {&#39;linear&#39;, &#39;log&#39;}, default: &#39;linear&#39;#Literal[&#39;linear&#39;, &#39;log&#39;]#Literal[&#39;linear&#39;, &#39;log&#39;]
+2#matplotlib/axes/_axes.py:Axes.quiverkey `matplotlib.quiver.Quiver`#matplotlib.quiver.Quiver#matplotlib.quiver.Quiver
+2#matplotlib/axes/_axes.py:Axes.quiver {&#39;width&#39;, &#39;height&#39;, &#39;dots&#39;, &#39;inches&#39;, &#39;x&#39;, &#39;y&#39;, &#39;xy&#39;}, default: &#39;width&#39;#Literal[&#39;width&#39;, &#39;height&#39;, &#39;dots&#39;, &#39;inches&#39;, &#39;x&#39;, &#39;y&#39;, &#39;xy&#39;]#Literal[&#39;width&#39;, &#39;height&#39;, &#39;dots&#39;, &#39;inches&#39;, &#39;x&#39;, &#39;y&#39;, &#39;xy&#39;]
+2#matplotlib/axes/_axes.py:Axes.imshow {&#39;upper&#39;, &#39;lower&#39;}, default: :rc:`image.origin`#Literal[&#39;upper&#39;, &#39;lower&#39;]#Literal[&#39;upper&#39;, &#39;lower&#39;]
+2#matplotlib/axes/_axes.py:Axes.pcolor {&#39;none&#39;, None, &#39;face&#39;, color, color sequence}, optional#Literal[&#39;none&#39;, None, &#39;face&#39;, color, color sequence]#Literal[&#39;none&#39;, None, &#39;face&#39;, color, color sequence]
+2#matplotlib/axes/_axes.py:Axes.pcolormesh `matplotlib.collections.QuadMesh`#matplotlib.collections.QuadMesh#matplotlib.collections.QuadMesh
+2#matplotlib/axes/_axes.py:Axes.pcolorfast `.AxesImage` or `.PcolorImage` or `.QuadMesh`#AxesImage#AxesImage
+2#matplotlib/axes/_axes.py:Axes.contour `~.contour.QuadContourSet`#contour.QuadContourSet#contour.QuadContourSet
+2#matplotlib/axes/_axes.py:Axes.hist (n,) array or sequence of (n,) arrays#tuple(n,)#tuple(n,)
+2#matplotlib/axes/_axes.py:Axes.hist {&#39;vertical&#39;, &#39;horizontal&#39;}, default: &#39;vertical&#39;#Literal[&#39;vertical&#39;, &#39;horizontal&#39;]#Literal[&#39;vertical&#39;, &#39;horizontal&#39;]
+2#matplotlib/axes/_axes.py:Axes.hist2d 2D array#2D array#2D array
+2#matplotlib/axes/_axes.py:Axes.hist2d 1D array#1D array#1D array
+2#matplotlib/axes/_axes.py:Axes.csd 1-D arrays or sequences#1-D arrays#1-D arrays
+2#matplotlib/axes/_axes.py:Axes.csd 1-D arrays or sequences#sequences#sequences
+2#matplotlib/axes/_axes.py:Axes.magnitude_spectrum {&#39;default&#39;, &#39;linear&#39;, &#39;dB&#39;}#Literal[&#39;default&#39;, &#39;linear&#39;, &#39;dB&#39;]#Literal[&#39;default&#39;, &#39;linear&#39;, &#39;dB&#39;]
+2#matplotlib/axes/_base.py:_AxesBase.__init__ `~matplotlib.figure.Figure`#matplotlib.figure.Figure#matplotlib.figure.Figure
+2#matplotlib/axes/_base.py:_AxesBase.__init__ [left, bottom, width, height]#tuple(left, bottom, width, height)#tuple(left, bottom, width, height)
+2#matplotlib/axes/_base.py:_AxesBase.set_aspect None or {&#39;box&#39;, &#39;datalim&#39;}, optional#Literal[&#39;box&#39;, &#39;datalim&#39;]#Literal[&#39;box&#39;, &#39;datalim&#39;]
+2#matplotlib/axes/_base.py:_AxesBase.set_xmargin float greater than -0.5#float greater than -0.5#float greater than -0.5
+2#matplotlib/axes/_base.py:_AxesBase.get_axisbelow bool or &#39;line&#39;#Literal[&#39;line&#39;]#Literal[&#39;line&#39;]
+2#matplotlib/axes/_base.py:_AxesBase.grid {&#39;major&#39;, &#39;minor&#39;, &#39;both&#39;}, optional#Literal[&#39;major&#39;, &#39;minor&#39;, &#39;both&#39;]#Literal[&#39;major&#39;, &#39;minor&#39;, &#39;both&#39;]
+2#matplotlib/axes/_base.py:_AxesBase.ticklabel_format {&#39;x&#39;, &#39;y&#39;, &#39;both&#39;}, default: &#39;both&#39;#Literal[&#39;x&#39;, &#39;y&#39;, &#39;both&#39;]#Literal[&#39;x&#39;, &#39;y&#39;, &#39;both&#39;]
+2#matplotlib/axes/_base.py:_AxesBase.set_xscale {&#34;linear&#34;, &#34;log&#34;, &#34;symlog&#34;, &#34;logit&#34;, ...} or `.ScaleBase`#ScaleBase#ScaleBase
+2#matplotlib/axes/_base.py:_AxesBase.set_xscale {&#34;linear&#34;, &#34;log&#34;, &#34;symlog&#34;, &#34;logit&#34;, ...} or `.ScaleBase`#Literal[&#34;linear&#34;, &#34;log&#34;, &#34;symlog&#34;, &#34;logit&#34;, ...]#Literal[&#34;linear&#34;, &#34;log&#34;, &#34;symlog&#34;, &#34;logit&#34;, ...]
+2#matplotlib/axes/_base.py:_AxesBase.start_pan `.MouseButton`#MouseButton#MouseButton
+1#matplotlib/axes/_axes.py:Axes.legend sequence of `.Artist`, optional#sequence of .Artist#sequence of .Artist
+1#matplotlib/axes/_axes.py:Axes.legend `~matplotlib.legend.Legend`#matplotlib.legend.Legend#matplotlib.legend.Legend
+1#matplotlib/axes/_axes.py:Axes.inset_axes number#number#number
+1#matplotlib/axes/_axes.py:Axes.inset_axes ax#ax#ax
+1#matplotlib/axes/_axes.py:Axes.annotate `.Annotation`#Annotation#Annotation
+1#matplotlib/axes/_axes.py:Axes.eventplot array-like or list of array-like#list[array-like]#list[array-like]
+1#matplotlib/axes/_axes.py:Axes.eventplot {&#39;horizontal&#39;, &#39;vertical&#39;}, default: &#39;horizontal&#39;#Literal[&#39;horizontal&#39;, &#39;vertical&#39;]#Literal[&#39;horizontal&#39;, &#39;vertical&#39;]
+1#matplotlib/axes/_axes.py:Axes.eventplot str or tuple or list of such values, default: &#39;solid&#39;#list[such values]#list[such values]
+1#matplotlib/axes/_axes.py:Axes.eventplot list of `.EventCollection`#list[EventCollection]#list[EventCollection]
+1#matplotlib/axes/_axes.py:Axes.plot_date timezone string or `datetime.tzinfo`, default: :rc:`timezone`#timezone string#timezone string
+1#matplotlib/axes/_axes.py:Axes.plot_date timezone string or `datetime.tzinfo`, default: :rc:`timezone`#datetime.tzinfo#datetime.tzinfo
+1#matplotlib/axes/_axes.py:Axes.bar_label {&#39;edge&#39;, &#39;center&#39;}, default: &#39;edge&#39;#Literal[&#39;edge&#39;, &#39;center&#39;]#Literal[&#39;edge&#39;, &#39;center&#39;]
+1#matplotlib/axes/_axes.py:Axes.bar_label list of `.Text`#list[Text]#list[Text]
+1#matplotlib/axes/_axes.py:Axes.broken_barh sequence of tuples (*xmin*, *xwidth*)#sequence of tuples#sequence of tuples
+1#matplotlib/axes/_axes.py:Axes.broken_barh sequence of tuples (*xmin*, *xwidth*)#tuple(*xmin*, *xwidth*)#tuple(*xmin*, *xwidth*)
+1#matplotlib/axes/_axes.py:Axes.broken_barh (*ymin*, *yheight*)#tuple(*ymin*, *yheight*)#tuple(*ymin*, *yheight*)
+1#matplotlib/axes/_axes.py:Axes.broken_barh `~.collections.BrokenBarHCollection`#collections.BrokenBarHCollection#collections.BrokenBarHCollection
+1#matplotlib/axes/_axes.py:Axes.stem `.StemContainer`#StemContainer#StemContainer
+1#matplotlib/axes/_axes.py:Axes.errorbar `.ErrorbarContainer`#ErrorbarContainer#ErrorbarContainer
+1#matplotlib/axes/_axes.py:Axes._parse_scatter_color_args color or sequence of color or {&#39;face&#39;, &#39;none&#39;} or None#Literal[&#39;face&#39;, &#39;none&#39;]#Literal[&#39;face&#39;, &#39;none&#39;]
+1#matplotlib/axes/_axes.py:Axes._parse_scatter_color_args c#c#c
+1#matplotlib/axes/_axes.py:Axes._parse_scatter_color_args array(N, 4) or None#tuple(N, 4)#tuple(N, 4)
+1#matplotlib/axes/_axes.py:Axes._parse_scatter_color_args edgecolors#edgecolors#edgecolors
+1#matplotlib/axes/_axes.py:Axes.scatter `~.markers.MarkerStyle`, default: :rc:`scatter.marker`#markers.MarkerStyle#markers.MarkerStyle
+1#matplotlib/axes/_axes.py:Axes.scatter {&#39;face&#39;, &#39;none&#39;, *None*} or color or sequence of color, default: :rc:`scatter.edgecolors`#Literal[&#39;face&#39;, &#39;none&#39;, *None*]#Literal[&#39;face&#39;, &#39;none&#39;, *None*]
+1#matplotlib/axes/_axes.py:Axes.scatter `~matplotlib.collections.PathCollection`#matplotlib.collections.PathCollection#matplotlib.collections.PathCollection
+1#matplotlib/axes/_axes.py:Axes.hexbin &#39;log&#39; or int or sequence, default: None#Literal[&#39;log&#39;]#Literal[&#39;log&#39;]
+1#matplotlib/axes/_axes.py:Axes.hexbin int &gt; 0, default: *None*#int &gt; 0#int &gt; 0
+1#matplotlib/axes/_axes.py:Axes.hexbin 4-tuple of float, default: *None*#4-tuple of float#4-tuple of float
+1#matplotlib/axes/_axes.py:Axes.hexbin `~matplotlib.collections.PolyCollection`#matplotlib.collections.PolyCollection#matplotlib.collections.PolyCollection
+1#matplotlib/axes/_axes.py:Axes.arrow {&#39;full&#39;, &#39;left&#39;, &#39;right&#39;}, default: &#39;full&#39;#Literal[&#39;full&#39;, &#39;left&#39;, &#39;right&#39;]#Literal[&#39;full&#39;, &#39;left&#39;, &#39;right&#39;]
+1#matplotlib/axes/_axes.py:Axes.arrow `.FancyArrow`#FancyArrow#FancyArrow
+1#matplotlib/axes/_axes.py:Axes.quiverkey {&#39;axes&#39;, &#39;figure&#39;, &#39;data&#39;, &#39;inches&#39;}, default: &#39;axes&#39;#Literal[&#39;axes&#39;, &#39;figure&#39;, &#39;data&#39;, &#39;inches&#39;]#Literal[&#39;axes&#39;, &#39;figure&#39;, &#39;data&#39;, &#39;inches&#39;]
+1#matplotlib/axes/_axes.py:Axes.quiverkey {&#39;N&#39;, &#39;S&#39;, &#39;E&#39;, &#39;W&#39;}#Literal[&#39;N&#39;, &#39;S&#39;, &#39;E&#39;, &#39;W&#39;]#Literal[&#39;N&#39;, &#39;S&#39;, &#39;E&#39;, &#39;W&#39;]
+1#matplotlib/axes/_axes.py:Axes.quiver {&#39;uv&#39;, &#39;xy&#39;} or array-like, default: &#39;uv&#39;#Literal[&#39;uv&#39;, &#39;xy&#39;]#Literal[&#39;uv&#39;, &#39;xy&#39;]
+1#matplotlib/axes/_axes.py:Axes.quiver {&#39;tail&#39;, &#39;mid&#39;, &#39;middle&#39;, &#39;tip&#39;}, default: &#39;tail&#39;#Literal[&#39;tail&#39;, &#39;mid&#39;, &#39;middle&#39;, &#39;tip&#39;]#Literal[&#39;tail&#39;, &#39;mid&#39;, &#39;middle&#39;, &#39;tip&#39;]
+1#matplotlib/axes/_axes.py:Axes.barbs {&#39;tip&#39;, &#39;middle&#39;} or float, default: &#39;tip&#39;#Literal[&#39;tip&#39;, &#39;middle&#39;]#Literal[&#39;tip&#39;, &#39;middle&#39;]
+1#matplotlib/axes/_axes.py:Axes.barbs bool or array-like of bool, default: False#array-like of bool#array-like of bool
+1#matplotlib/axes/_axes.py:Axes.barbs `~matplotlib.quiver.Barbs`#matplotlib.quiver.Barbs#matplotlib.quiver.Barbs
+1#matplotlib/axes/_axes.py:Axes.fill sequence of x, y, [color]#sequence of x#sequence of x
+1#matplotlib/axes/_axes.py:Axes.fill sequence of x, y, [color]#y#y
+1#matplotlib/axes/_axes.py:Axes.fill sequence of x, y, [color]#tuple(color)#tuple(color)
+1#matplotlib/axes/_axes.py:Axes.fill list of `~matplotlib.patches.Polygon`#list[matplotlib.patches.Polygon]#list[matplotlib.patches.Polygon]
+1#matplotlib/axes/_axes.py:Axes._fill_between_x_or_y {{&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}}, optional#{#{
+1#matplotlib/axes/_axes.py:Axes._fill_between_x_or_y {{&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}}, optional#Literal[&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}]#Literal[&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}]
+1#matplotlib/axes/_axes.py:Axes.imshow array-like or PIL image#PIL image#PIL image
+1#matplotlib/axes/_axes.py:Axes.imshow {&#39;equal&#39;, &#39;auto&#39;} or float, default: :rc:`image.aspect`#Literal[&#39;equal&#39;, &#39;auto&#39;]#Literal[&#39;equal&#39;, &#39;auto&#39;]
+1#matplotlib/axes/_axes.py:Axes.imshow {&#39;data&#39;, &#39;rgba&#39;}, default: &#39;data&#39;#Literal[&#39;data&#39;, &#39;rgba&#39;]#Literal[&#39;data&#39;, &#39;rgba&#39;]
+1#matplotlib/axes/_axes.py:Axes.imshow floats (left, right, bottom, top), optional#floats#floats
+1#matplotlib/axes/_axes.py:Axes.imshow floats (left, right, bottom, top), optional#tuple(left, right, bottom, top)#tuple(left, right, bottom, top)
+1#matplotlib/axes/_axes.py:Axes.imshow float &gt; 0, default: 4.0#float &gt; 0#float &gt; 0
+1#matplotlib/axes/_axes.py:Axes.pcolor {&#39;flat&#39;, &#39;nearest&#39;, &#39;auto&#39;}, default: :rc:`pcolor.shading`#Literal[&#39;flat&#39;, &#39;nearest&#39;, &#39;auto&#39;]#Literal[&#39;flat&#39;, &#39;nearest&#39;, &#39;auto&#39;]
+1#matplotlib/axes/_axes.py:Axes.pcolor `matplotlib.collections.Collection`#matplotlib.collections.Collection#matplotlib.collections.Collection
+1#matplotlib/axes/_axes.py:Axes.pcolormesh {&#39;flat&#39;, &#39;nearest&#39;, &#39;gouraud&#39;, &#39;auto&#39;}, optional#Literal[&#39;flat&#39;, &#39;nearest&#39;, &#39;gouraud&#39;, &#39;auto&#39;]#Literal[&#39;flat&#39;, &#39;nearest&#39;, &#39;gouraud&#39;, &#39;auto&#39;]
+1#matplotlib/axes/_axes.py:Axes.pcolorfast `.AxesImage` or `.PcolorImage` or `.QuadMesh`#PcolorImage#PcolorImage
+1#matplotlib/axes/_axes.py:Axes.pcolorfast `.AxesImage` or `.PcolorImage` or `.QuadMesh`#QuadMesh#QuadMesh
+1#matplotlib/axes/_axes.py:Axes.clabel `.ContourSet` instance#ContourSet instance#ContourSet instance
+1#matplotlib/axes/_axes.py:Axes.hist (n,) array or sequence of (n,) arrays#(n#(n
+1#matplotlib/axes/_axes.py:Axes.hist (n,) array or sequence of (n,) arrays#) array#) array
+1#matplotlib/axes/_axes.py:Axes.hist (n,) array or sequence of (n,) arrays#sequence of  arrays#sequence of  arrays
+1#matplotlib/axes/_axes.py:Axes.hist bool or -1, default: False#Literal[-1]#Literal[-1]
+1#matplotlib/axes/_axes.py:Axes.hist {&#39;bar&#39;, &#39;barstacked&#39;, &#39;step&#39;, &#39;stepfilled&#39;}, default: &#39;bar&#39;#Literal[&#39;bar&#39;, &#39;barstacked&#39;, &#39;step&#39;, &#39;stepfilled&#39;]#Literal[&#39;bar&#39;, &#39;barstacked&#39;, &#39;step&#39;, &#39;stepfilled&#39;]
+1#matplotlib/axes/_axes.py:Axes.hist {&#39;left&#39;, &#39;mid&#39;, &#39;right&#39;}, default: &#39;mid&#39;#Literal[&#39;left&#39;, &#39;mid&#39;, &#39;right&#39;]#Literal[&#39;left&#39;, &#39;mid&#39;, &#39;right&#39;]
+1#matplotlib/axes/_axes.py:Axes.hist color or array-like of colors or None, default: None#array-like of colors#array-like of colors
+1#matplotlib/axes/_axes.py:Axes.hist array or list of arrays#list[arrays]#list[arrays]
+1#matplotlib/axes/_axes.py:Axes.hist `.BarContainer` or list of a single `.Polygon` or list of such objects#list[a single .Polygon]#list[a single .Polygon]
+1#matplotlib/axes/_axes.py:Axes.hist `.BarContainer` or list of a single `.Polygon` or list of such objects#list[such objects]#list[such objects]
+1#matplotlib/axes/_axes.py:Axes.stairs `matplotlib.patches.StepPatch`#matplotlib.patches.StepPatch#matplotlib.patches.StepPatch
+1#matplotlib/axes/_axes.py:Axes.hist2d None or int or [int, int] or array-like or [array, array]#[int#[int
+1#matplotlib/axes/_axes.py:Axes.hist2d None or int or [int, int] or array-like or [array, array]#int]#int]
+1#matplotlib/axes/_axes.py:Axes.hist2d None or int or [int, int] or array-like or [array, array]#tuple(array, array)#tuple(array, array)
+1#matplotlib/axes/_axes.py:Axes.hist2d array-like shape(2, 2), optional#array-like shape#array-like shape
+1#matplotlib/axes/_axes.py:Axes.hist2d array-like shape(2, 2), optional#tuple(2, 2)#tuple(2, 2)
+1#matplotlib/axes/_axes.py:Axes.specgram {&#39;default&#39;, &#39;psd&#39;, &#39;magnitude&#39;, &#39;angle&#39;, &#39;phase&#39;}#Literal[&#39;default&#39;, &#39;psd&#39;, &#39;magnitude&#39;, &#39;angle&#39;, &#39;phase&#39;]#Literal[&#39;default&#39;, &#39;psd&#39;, &#39;magnitude&#39;, &#39;angle&#39;, &#39;phase&#39;]
+1#matplotlib/axes/_axes.py:Axes.specgram `.Colormap`, default: :rc:`image.cmap`#Colormap#Colormap
+1#matplotlib/axes/_axes.py:Axes.specgram *None* or (xmin, xmax)#*None*#*None*
+1#matplotlib/axes/_axes.py:Axes.specgram *None* or (xmin, xmax)#tuple(xmin, xmax)#tuple(xmin, xmax)
+1#matplotlib/axes/_axes.py:Axes.spy float or &#39;present&#39;, default: 0#Literal[&#39;present&#39;]#Literal[&#39;present&#39;]
+1#matplotlib/axes/_axes.py:Axes.spy {&#39;equal&#39;, &#39;auto&#39;, None} or float, default: &#39;equal&#39;#Literal[&#39;equal&#39;, &#39;auto&#39;, None]#Literal[&#39;equal&#39;, &#39;auto&#39;, None]
+1#matplotlib/axes/_base.py:_process_plot_var_args._plot_args result#result#result
+1#matplotlib/axes/_base.py:_AxesBase.set_figure `.Figure`#Figure#Figure
+1#matplotlib/axes/_base.py:_AxesBase.set_position [left, bottom, width, height] or `~matplotlib.transforms.Bbox`#matplotlib.transforms.Bbox#matplotlib.transforms.Bbox
+1#matplotlib/axes/_base.py:_AxesBase.set_position {&#39;both&#39;, &#39;active&#39;, &#39;original&#39;}, default: &#39;both&#39;#Literal[&#39;both&#39;, &#39;active&#39;, &#39;original&#39;]#Literal[&#39;both&#39;, &#39;active&#39;, &#39;original&#39;]
+1#matplotlib/axes/_base.py:_AxesBase.set_axes_locator Callable[[Axes, Renderer], Bbox]#Callable[#Callable[
+1#matplotlib/axes/_base.py:_AxesBase.set_axes_locator Callable[[Axes, Renderer], Bbox]#tuple(Axes, Renderer], Bbox)#tuple(Axes, Renderer], Bbox)
+1#matplotlib/axes/_base.py:_AxesBase._gen_axes_patch Patch#Patch#Patch
+1#matplotlib/axes/_base.py:_AxesBase.set_prop_cycle Cycler#Cycler#Cycler
+1#matplotlib/axes/_base.py:_AxesBase.set_prop_cycle iterable#iterable#iterable
+1#matplotlib/axes/_base.py:_AxesBase.set_aspect {&#39;auto&#39;, &#39;equal&#39;} or float#Literal[&#39;auto&#39;, &#39;equal&#39;]#Literal[&#39;auto&#39;, &#39;equal&#39;]
+1#matplotlib/axes/_base.py:_AxesBase.set_anchor (float, float) or {&#39;C&#39;, &#39;SW&#39;, &#39;S&#39;, &#39;SE&#39;, &#39;E&#39;, &#39;NE&#39;, ...}#Literal[&#39;C&#39;, &#39;SW&#39;, &#39;S&#39;, &#39;SE&#39;, &#39;E&#39;, &#39;NE&#39;, ...]#Literal[&#39;C&#39;, &#39;SW&#39;, &#39;S&#39;, &#39;SE&#39;, &#39;E&#39;, &#39;NE&#39;, ...]
+1#matplotlib/axes/_base.py:_AxesBase.draw `.RendererBase` subclass.#RendererBase subclass.#RendererBase subclass.
+1#matplotlib/axes/_base.py:_AxesBase.grid `.Line2D` properties#Line2D properties#Line2D properties
+1#matplotlib/axes/_base.py:_AxesBase.ticklabel_format {&#39;sci&#39;, &#39;scientific&#39;, &#39;plain&#39;}#Literal[&#39;sci&#39;, &#39;scientific&#39;, &#39;plain&#39;]#Literal[&#39;sci&#39;, &#39;scientific&#39;, &#39;plain&#39;]
+1#matplotlib/axes/_base.py:_AxesBase.ticklabel_format pair of ints (m, n)#pair of ints#pair of ints
+1#matplotlib/axes/_base.py:_AxesBase.ticklabel_format pair of ints (m, n)#tuple(m, n)#tuple(m, n)
+1#matplotlib/axes/_base.py:_AxesBase.set_xlabel {&#39;left&#39;, &#39;center&#39;, &#39;right&#39;}, default: :rc:`xaxis.labellocation`#Literal[&#39;left&#39;, &#39;center&#39;, &#39;right&#39;]#Literal[&#39;left&#39;, &#39;center&#39;, &#39;right&#39;]
+1#matplotlib/axes/_base.py:_AxesBase._validate_converted_limits The limit value after call to convert(), or None if limit is None.#The limit value after call to convert#The limit value after call to convert
+1#matplotlib/axes/_base.py:_AxesBase._validate_converted_limits The limit value after call to convert(), or None if limit is None.#None if limit is None.#None if limit is None.
+1#matplotlib/axes/_base.py:_AxesBase._validate_converted_limits The limit value after call to convert(), or None if limit is None.#tuple()#tuple()
+1#matplotlib/axes/_base.py:_AxesBase.set_ylabel {&#39;bottom&#39;, &#39;center&#39;, &#39;top&#39;}, default: :rc:`yaxis.labellocation`#Literal[&#39;bottom&#39;, &#39;center&#39;, &#39;top&#39;]#Literal[&#39;bottom&#39;, &#39;center&#39;, &#39;top&#39;]
+1#matplotlib/axes/_base.py:_AxesBase._set_view_from_bbox 4-tuple or 3 tuple#4-tuple#4-tuple
+1#matplotlib/axes/_base.py:_AxesBase._set_view_from_bbox 4-tuple or 3 tuple#3 tuple#3 tuple
+1#matplotlib/axes/_base.py:_AxesBase.contains `matplotlib.backend_bases.MouseEvent`#matplotlib.backend_bases.MouseEvent#matplotlib.backend_bases.MouseEvent
+1#matplotlib/axes/_base.py:_AxesBase.get_tightbbox `.RendererBase` subclass#RendererBase subclass#RendererBase subclass
+1#matplotlib/axes/_base.py:_AxesBase.get_tightbbox list of `.Artist` or ``None``#list[Artist]#list[Artist]
+1#matplotlib/axes/_base.py:_AxesBase.get_tightbbox default: False#default: False#default: False
+1#matplotlib/axes/_base.py:_AxesBase.get_tightbbox `.BboxBase`#BboxBase#BboxBase
+1#matplotlib/axes/_subplots.py:SubplotBase.__init__ tuple (*nrows*, *ncols*, *index*) or int#tuple(*nrows*, *ncols*, *index*)#tuple(*nrows*, *ncols*, *index*)
+1#matplotlib/axes/_secondary_axes.py:SecondaryAxis.set_ticks list of floats#list[floats]#list[floats]
+1#matplotlib/axes/_secondary_axes.py:SecondaryAxis.set_functions 2-tuple of func, or `Transform` with an inverse.#Transform with an inverse.#Transform with an inverse.
+</code></pre><p>Remember that the type may only represent a part of the sample context; the entire context was potentially turned into a union with the type being just one element. So its a mistake to look at the context and think the type doesn&rsquo;t match <em>all</em> of it.</p><p>Our crude normalizer hasn&rsquo;t done too badly; the bulk of these types make sense and many of them are usable as is. Others are clear enough that we could come up with an alternative to map them to.</p><p>There&rsquo;s definitely some near the end of the list where we are messing up; I&rsquo;ll look at those in more detail later and see how we can tweak normalization. A typical cause is when my current limitation of only being able to handle one literal or tuple in a type description is violated. E.g. if there is nesting, as in:</p><pre tabindex=0><code>1#matplotlib/axes/_base.py:_AxesBase.set_axes_locator Callable[[Axes, Renderer], Bbox]#Callable[#Callable[
+</code></pre><p>or multiple options, as in:</p><pre tabindex=0><code>1#matplotlib/axes/_axes.py:Axes.hist2d None or int or [int, int] or array-like or [array, array]#[int#[int
+</code></pre><p>Nonetheless, you can see that there are only a little over 200 lines in this map file; considering how long it would take to hand-correct all the types individually and turn them into annotations, versus editing this file and automatically inserting them, this approach should pay off.</p><h2 id=next-time>Next Time</h2><p>That&rsquo;s enough for one day; next time I will look at improving the normalization, collecting a mapping for a whole package, and, finally, applying the types in the mapping file to our stubs.</p><hr><ul class=pager><li class=next><a href=/post/digital-reflection/ data-toggle=tooltip data-placement=top title="Digital Reflection">Next
+Post &rarr;</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramster.github.io issue-term=pathname theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a href=https://twitter.com/gramnix><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-twitter fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(e,t){var s=document,o="script",n=s.createElement(o),i=s.getElementsByTagName(o)[0];n.src=e,t&&n.addEventListener("load",function(e){t(null,e)},!1),i.parentNode.insertBefore(n,i)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,a=$(_containerSelector),r=a.find("h1,h2,h3,h4,h5,h6");return $(e).html(""),r.each(function(){t=$(this).prop("tagName").toLowerCase(),o="#"+$(this).prop("id"),n=$(this).text(),i=$('<a href="'+o+'" rel="nofollow">'+n+"</a>"),s=$('<li class="'+t+'_nav"></li>').append(i),$(e).append(s)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

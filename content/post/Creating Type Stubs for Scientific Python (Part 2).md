@@ -1,4 +1,11 @@
-# Creating Type Stubs for Scientific Python (Part 2)
+---
+title: Creating Type Stubs for Scientific Python (Part 2)
+date: 2022-08-29T16:47:00
+author: Graham Wheeler
+category: Programming
+comments: enabled
+---
+
 
 Welcome back to this series on creating type stubs for scientific Python. In the last post we looked at using LibCST to generate skeleton type stubs, with a little bit of inference from value assignments. In this post we will dive into the process of using numpydoc-format docstrings.
 

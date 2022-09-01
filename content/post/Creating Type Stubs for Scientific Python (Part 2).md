@@ -207,7 +207,6 @@ I don't want to reuse that ugly code here; I'll try to do something a bit cleane
 - a 'human in the loop' stage where that file is inspected and cleaned up by a human
 - an 'apply' stage where we generate stubs using the skeleton we developed in the last post, but making use of the map we created to insert types
 
-## The Analyzer
 
 ### Parsing the Docstrings
 
@@ -252,6 +251,8 @@ class DocstringParserBase(abc.ABC):
     _xref_or_code_regex = re.compile(
         r'((?::(?:[a-zA-Z0-9]+[\-_+:.])*[a-zA-Z0-9]+:`.+?`)|'
         r'(?:``.+?``))')
+    _remove_default_val = re.compile(r'^(.*),[ \t]*default[ \t]*.*$')
+    _remove_optional = re.compile(r'^(.*),[ \t]*[Oo]ptional$')
 
     def __init__(self):
         self._attributes = None
@@ -360,6 +361,19 @@ class DocstringParserBase(abc.ABC):
         fields = []
         while not self._is_section_break():
             name, typ = self._consume_field(prefer_type)
+            
+            # Remove , optional ... from end
+            m = DocstringParserBase._remove_optional.match(typ)
+            if m:
+                typ = m.group(1)
+            # Remove , default ... from end
+            m = DocstringParserBase._remove_default_val.match(typ)
+            if m:
+                typ = m.group(1)
+                
+            # Remove (default) from within
+            typ = typ.replace(' (default)', '')
+            
             if multiple and name:
                 for n in name.split(","):
                     fields.append((n.strip(), typ))
@@ -488,10 +502,10 @@ And we get the output:
 ```
 Params
 ------
-  name prop: type {"colors", "sizes"}, default: "colors"
-  name num: type int, None, "auto" (default), array-like, or `~.ticker.Locator`
-  name fmt: type str, `~matplotlib.ticker.Formatter`, or None (default)
-  name func: type function, default: ``lambda x: x``
+  name prop: type {"colors", "sizes"}
+  name num: type int, None, "auto" , array-like, or `~.ticker.Locator`
+  name fmt: type str, `~matplotlib.ticker.Formatter`, or None
+  name func: type function
   name **kwargs: type 
 Returns
 -------
@@ -499,7 +513,7 @@ Returns
   name labels: type list of str
 ```
 
-Of course, this has just got the raw fields out of the docstring; there's no normalization or conversion to something closer to Python type annotations yet. In the next section we will work on addressing that.
+Of course, this has just got the raw fields out of the docstring (minus default/optional bits); there's no normalization or conversion to something closer to Python type annotations yet. In the next section we will work on addressing that.
 
 ### Best-Effort Type Cleaning
 
@@ -510,8 +524,6 @@ The first thing we can do is throw away anything that starts with ", default ...
 ```python
 import re
 
-_remove_default_val = re.compile(r'^(.*),[ \t]*default[ \t]*.*$')
-_remove_optional = re.compile(r'^(.*),[ \t]*[Oo]ptional$')
 _restricted_val = re.compile(r'^(.*){(.*)}(.*)$')
 _tuple1 = re.compile(r'^(.*)\((.*)\)(.*)$')  # using ()
 _tuple2 = re.compile(r'^(.*)\[(.*)\](.*)$')  # using []
@@ -520,16 +532,6 @@ _tuple_of = re.compile(r'^(Tuple|tuple) of ([A-Za-z\._~`]+)$')
 
 
 def normalize_type(s: str) -> str:
-    # Remove , optional ... from end
-    m = _remove_optional.match(s)
-    if m:
-        s = m.group(1)
-    # Remove , default ... from end
-    m = _remove_default_val.match(s)
-    if m:
-        s = m.group(1)
-    # Remove (default) from within
-    s = s.replace('(default)', '')
     # Handle a restricted value set
     m = _restricted_val.match(s)
     l = None
@@ -874,64 +876,53 @@ def analyze_module(m: str):
 We can now run this on a module. Below is the output from analyzing `matplotlib.axes`. Each line is a count followed by the original type and the normalized type. Later we will have the opportunity to edit this file to correct the normalized types before they get injected.
 
 ```
-42#bool, default: False#bool
-30#bool, default: True#bool
-21#float, optional#float
+100#float#float
+94#bool#bool
+35#array-like#array-like
+27#int#int
+25#str#str
+23#dict#dict
+23#float or array-like#float|array-like
 19##
-19#float#float
-17#bool#bool
-16#float, default: None#float
-15#array-like, optional#array-like
 14#1-D array#1-D array
-13#float or array-like#float|array-like
-11#array-like#array-like
-10#str#str
-10#dict#dict
-10#dict, optional#dict
-10#float, default: 0#float
-8#indexable object, optional#indexable object
-8#int, optional#int
-7#(float, float)#tuple(float, float)
-7#float, default: 1#float
+10#float or None#float|None
+10#1D or 2D array-like#1D|2D array-like
+9#(float, float)#tuple(float, float)
+9#bool or None#bool|None
+8#indexable object#indexable object
+7#color#color
 7#`~matplotlib.lines.Line2D`#matplotlib.lines.Line2D
-7#str, optional#str
-7#float, default: 2#float
-7#callable or ndarray, default: `.window_hanning`#callable|ndarray
-7#{'default', 'onesided', 'twosided'}, optional#Literal['default', 'onesided', 'twosided']
-7#int, default: 0#int
+7#callable or ndarray#callable|ndarray
+7#{'default', 'onesided', 'twosided'}#Literal['default', 'onesided', 'twosided']
 6#list of `.Line2D`#list of .Line2D
-6#1D or 2D array-like, optional#1D|2D array-like
-6#float or None#float|None
-5#list#list
-5#str or `~matplotlib.colors.Colormap`, default: :rc:`image.cmap`#str|matplotlib.colors.Colormap
+6#list#list
+6#array (length N) or scalar#array|scalar|tuple(length N)
+5#{'center', 'left', 'right'}#Literal['center', 'left', 'right']
+5#str or `~matplotlib.colors.Colormap`#str|matplotlib.colors.Colormap
+5#`~matplotlib.colors.Normalize`#matplotlib.colors.Normalize
 5#1-D array or sequence#1-D array|sequence
-4#1D or 2D array-like#1D|2D array-like
-4#`~matplotlib.colors.Normalize`, optional#matplotlib.colors.Normalize
 4#(M, N) array-like#array-like|tuple(M, N)
-4#int, default: 256#int
-4#{'none', 'mean', 'linear'} or callable, default: 'none'#callable|Literal['none', 'mean', 'linear']
+4#{'none', 'mean', 'linear'} or callable#callable|Literal['none', 'mean', 'linear']
 4#Transform#Transform
 4#{'center', 'top', 'bottom', 'baseline', 'center_baseline'}#Literal['center', 'top', 'bottom', 'baseline', 'center_baseline']
-4#{'center', 'left', 'right'}#Literal['center', 'left', 'right']
 3#`.Bbox`#Bbox
 3#{'top', 'bottom', 'left', 'right'} or float#float|Literal['top', 'bottom', 'left', 'right']
-3#dict, default: None#dict
-3#str, default: ''#str
-3#float, default: 10#float
-3#{'mask', 'clip'}, default: 'mask'#Literal['mask', 'clip']
+3#{'mask', 'clip'}#Literal['mask', 'clip']
+3#callable#callable
+3#{'pre', 'post', 'mid'}#Literal['pre', 'post', 'mid']
 3#`.BarContainer`#BarContainer
-3#array-like, default: None#array-like
-3#array-like, default: [1, 2, ..., n]#array-like
-3#color#color
+3#float or array-like, shape (n, )#float|array-like|shape|tuple(n, )
+3#color or color sequence#color|color sequence
 3#array (length N)#array|tuple(length N)
-3#array (length N) or scalar#array|scalar|tuple(length N)
-3#array (length N) or scalar, default: 0#array|scalar|tuple(length N)
-3#array of bool (length N), optional#Sequence[bool]|tuple(length N)
+3#array of bool (length N)#Sequence[bool]|tuple(length N)
 3#`.PolyCollection`#PolyCollection
 3#2D array-like#2D array-like
-3#int, default: 0 (no overlap)#int
+3#str or None#str|None
+3#array-like, shape (n, )#array-like|shape|tuple(n, )
+3#`~.axes.Axes`#axes.Axes
+3#{'both', 'x', 'y'}#Literal['both', 'x', 'y']
 2#`.Text`#Text
-2#list of str, optional#Sequence[str]
+2#list of str#Sequence[str]
 2#[x0, y0, width, height]#tuple(x0, y0, width, height)
 2#`.Transform`#Transform
 2#`.Axes`#Axes
@@ -939,229 +930,154 @@ We can now run this on a module. Below is the output from analyzing `matplotlib.
 2#4-tuple of `.patches.ConnectionPatch`#4-tuple of .patches.ConnectionPatch
 2#2-tuple of func, or Transform with an inverse#2-tuple of func|Transform with an inverse
 2#axes._secondary_axes.SecondaryAxis#axes._secondary_axes.SecondaryAxis
-2#bool or None, default: None#bool|None
+2#str or `.Artist` or `.Transform` or callable or (float, float)#str|Artist|Transform|callable|tuple(float, float)
 2#`~matplotlib.patches.Polygon`#matplotlib.patches.Polygon
-2#list of colors, default: :rc:`lines.color`#Sequence[colors]
-2#{'solid', 'dashed', 'dashdot', 'dotted'}, optional#Literal['solid', 'dashed', 'dashdot', 'dotted']
+2#list of colors#Sequence[colors]
+2#{'solid', 'dashed', 'dashdot', 'dotted'}#Literal['solid', 'dashed', 'dashdot', 'dotted']
 2#`~matplotlib.collections.LineCollection`#matplotlib.collections.LineCollection
-2#float or array-like, default: 1#float|array-like
-2#float or array-like, default: :rc:`lines.linewidth`#float|array-like
 2#array-like or scalar#array-like|scalar
-2#sequence, optional#sequence
-2#callable, default: `.mlab.detrend_none` (no detrending)#callable
-2#int, default: 10#int
+2#sequence#sequence
 2#array (length ``2*maxlags+1``)#array|tuple(length ``2*maxlags+1``)
 2#array  (length ``2*maxlags+1``)#array|tuple(length ``2*maxlags+1``)
 2#`.LineCollection` or `.Line2D`#LineCollection|Line2D
 2#`.Line2D` or None#Line2D|None
 2#array-like of length n#array-like of length n
-2#float or array-like, default: 0.8#float|array-like
-2#float or array-like, default: 0#float|array-like
-2#{'center', 'edge'}, default: 'center'#Literal['center', 'edge']
-2#float or array-like, shape(N,) or shape(2, N), optional#float|array-like|shape(N|)|shape|tuple(2, N)
+2#{'center', 'edge'}#Literal['center', 'edge']
+2#1D array-like#1D array-like
+2#float or array-like, shape(N,) or shape(2, N)#float|array-like|shape(N|)|shape|tuple(2, N)
+2#int or (int, int)#int|tuple(int, int)
 2#Array or a sequence of vectors.#Array|a sequence of vectors.
-2#float, default: ``Line2D.zorder = 2``#float
 2#list of dicts#Sequence[dicts]
-2#float or array-like, shape (n, )#float|array-like|shape|tuple(n, )
-2#{'linear', 'log'}, default: 'linear'#Literal['linear', 'log']
-2#color or color sequence#color|color sequence
-2#{'pre', 'post', 'mid'}, optional#Literal['pre', 'post', 'mid']
-2#{'upper', 'lower'}, default: :rc:`image.origin`#Literal['upper', 'lower']
+2#{'linear', 'log'}#Literal['linear', 'log']
+2#{'width', 'height', 'dots', 'inches', 'x', 'y', 'xy'}#Literal['width', 'height', 'dots', 'inches', 'x', 'y', 'xy']
+2#{'upper', 'lower'}#Literal['upper', 'lower']
 2#`~matplotlib.image.AxesImage`#matplotlib.image.AxesImage
-2#{'none', None, 'face', color, color sequence}, optional#Literal['none', None, 'face', color, color sequence]
-2#tuple or array-like, default: ``(0, N)``, ``(0, M)``#tuple|array-like
-2#int or array-like, optional#int|array-like
+2#{'none', None, 'face', color, color sequence}#Literal['none', None, 'face', color, color sequence]
+2#tuple or array-like#tuple|array-like
+2#int or array-like#int|array-like
 2#`~.contour.QuadContourSet`#contour.QuadContourSet
-2#{'vertical', 'horizontal'}, default: 'vertical'#Literal['vertical', 'horizontal']
-2#array-like, shape (n, )#array-like|shape|tuple(n, )
+2#{'vertical', 'horizontal'}#Literal['vertical', 'horizontal']
 2#2D array#2D array
 2#1D array#1D array
 2#1-D arrays or sequences#1-D arrays|sequences
 2#{'default', 'linear', 'dB'}#Literal['default', 'linear', 'dB']
-2#bool, default: True.#bool
-2#array-like, default: 0.5#array-like
-2#`~.axes.Axes`, optional#axes.Axes
 2#float greater than -0.5#float greater than -0.5
-2#bool or None, default: True#bool|None
-2#{'both', 'x', 'y'}, default: 'both'#Literal['both', 'x', 'y']
 2#bool or 'line'#bool|Literal['line']
-2#bool or None, optional#bool|None
-2#{'x', 'y', 'both'}, default: 'both'#Literal['x', 'y', 'both']
-2#float, default: :rc:`axes.labelpad`#float
-2#bool or None, default: False#bool|None
+2#{'major', 'minor', 'both'}#Literal['major', 'minor', 'both']
+2#{'x', 'y', 'both'}#Literal['x', 'y', 'both']
 2#{"linear", "log", "symlog", "logit", ...} or `.ScaleBase`#ScaleBase|Literal["linear", "log", "symlog", "logit", ...]
-2#str or None#str|None
 2#`.MouseButton`#MouseButton
 2#Axes#Axes
-1#{'center', 'left', 'right'}, str, default: 'center'#str|Literal['center', 'left', 'right']
-1#{'center', 'left', 'right'}, default: :rc:`axes.titlelocation`#Literal['center', 'left', 'right']
-1#float, default: :rc:`axes.titley`#float
-1#float, default: :rc:`axes.titlepad`#float
-1#sequence of `.Artist`, optional#Sequence[Artist]
+1#{'center', 'left', 'right'}, str#str|Literal['center', 'left', 'right']
+1#sequence of `.Artist`#Sequence[Artist]
 1#`~matplotlib.legend.Legend`#matplotlib.legend.Legend
 1#number#number
 1#ax#ax
-1#color, default: 'none'#color
-1#color, default: '0.5'#color
-1#float, default: 0.5#float
-1#float, default: 4.99#float
-1#(float, float), default: *xy*#tuple(float, float)
-1#str or `.Artist` or `.Transform` or callable or (float, float), default: 'data'#str|Artist|Transform|callable|tuple(float, float)
-1#str or `.Artist` or `.Transform` or callable or (float, float), default: value of *xycoords*#str|Artist|Transform|callable|tuple(float, float)
 1#`.Annotation`#Annotation
 1#`.Line2D`#Line2D
 1#array-like or list of array-like#array-like|list of array-like
-1#{'horizontal', 'vertical'}, default: 'horizontal'#Literal['horizontal', 'vertical']
-1#color or list of colors, default: :rc:`lines.color`#color|Sequence[colors]
-1#str or tuple or list of such values, default: 'solid'#str|tuple|list of such values
+1#{'horizontal', 'vertical'}#Literal['horizontal', 'vertical']
+1#color or list of colors#color|Sequence[colors]
+1#str or tuple or list of such values#str|tuple|list of such values
 1#list of `.EventCollection`#Sequence[EventCollection]
-1#timezone string or `datetime.tzinfo`, default: :rc:`timezone`#timezone string|datetime.tzinfo
-1#{'pre', 'post', 'mid'}, default: 'pre'#Literal['pre', 'post', 'mid']
-1#str, default: '%g'#str
-1#{'edge', 'center'}, default: 'edge'#Literal['edge', 'center']
+1#timezone string or `datetime.tzinfo`#timezone string|datetime.tzinfo
+1#{'edge', 'center'}#Literal['edge', 'center']
 1#list of `.Text`#Sequence[Text]
 1#sequence of tuples (*xmin*, *xwidth*)#Sequence[tuples]|tuple(*xmin*, *xwidth*)
 1#(*ymin*, *yheight*)#tuple(*ymin*, *yheight*)
 1#`~.collections.BrokenBarHCollection`#collections.BrokenBarHCollection
-1#array-like, default: (0, 1, ..., len(heads) - 1)#array-like
-1#str, default: 'C3-' ('C2-' in classic mode)#str
-1#str, default: 'vertical'#str
-1#str, default: None#str
 1#`.StemContainer`#StemContainer
-1#1D array-like#1D array-like
-1#list, default: None#list
-1#None or str or callable, default: None#None|str|callable
-1#float, default: 0.6#float
-1#float or None, default: 1.1#float|None
-1#float, default: 0 degrees#float
-1#(float, float), default: (0, 0)#tuple(float, float)
-1#color, default: None#color
-1#float, default: :rc:`errorbar.capsize`#float
-1#int or (int, int), default: 1#int|tuple(int, int)
+1#None or str or callable#None|str|callable
 1#`.ErrorbarContainer`#ErrorbarContainer
-1#float or (float, float), default: 1.5#float|tuple(float, float)
-1#1D array-like, optional#1D array-like
-1#float or array-like, default: None#float|array-like
+1#float or (float, float)#float|tuple(float, float)
 1#color or sequence or sequence of color or None#color|sequence|Sequence[color]|None
 1#color or sequence of color or {'face', 'none'} or None#color|Sequence[color]|None|Literal['face', 'none']
-1#int#int
-1#callable#callable
 1#c#c
 1#array(N, 4) or None#array|None|tuple(N, 4)
 1#edgecolors#edgecolors
-1#float or array-like, shape (n, ), optional#float|array-like|shape|tuple(n, )
-1#array-like or list of colors or color, optional#array-like|Sequence[colors]|color
-1#`~.markers.MarkerStyle`, default: :rc:`scatter.marker`#markers.MarkerStyle
-1#`~matplotlib.colors.Normalize`, default: None#matplotlib.colors.Normalize
-1#{'face', 'none', *None*} or color or sequence of color, default: :rc:`scatter.edgecolors`#color|Sequence[color]|Literal['face', 'none', *None*]
+1#array-like or list of colors or color#array-like|Sequence[colors]|color
+1#`~.markers.MarkerStyle`#markers.MarkerStyle
+1#{'face', 'none', *None*} or color or sequence of color#color|Sequence[color]|Literal['face', 'none', *None*]
 1#`~matplotlib.collections.PathCollection`#matplotlib.collections.PathCollection
-1#int or (int, int), default: 100#int|tuple(int, int)
-1#'log' or int or sequence, default: None#Literal['log']|int|sequence
-1#int > 0, default: *None*#int > 0
-1#bool, default: *False*#bool
-1#4-tuple of float, default: *None*#4-tuple of float
+1#'log' or int or sequence#Literal['log']|int|sequence
+1#int > 0#int > 0
+1#4-tuple of float#4-tuple of float
 1#`~matplotlib.collections.PolyCollection`#matplotlib.collections.PolyCollection
-1#float, default: 0.001#float
-1#float or None, default: 3*width#float|None
-1#float or None, default: 1.5*head_width#float|None
-1#{'full', 'left', 'right'}, default: 'full'#Literal['full', 'left', 'right']
+1#{'full', 'left', 'right'}#Literal['full', 'left', 'right']
 1#`.FancyArrow`#FancyArrow
 1#`matplotlib.quiver.Quiver`#matplotlib.quiver.Quiver
-1#{'axes', 'figure', 'data', 'inches'}, default: 'axes'#Literal['axes', 'figure', 'data', 'inches']
+1#{'axes', 'figure', 'data', 'inches'}#Literal['axes', 'figure', 'data', 'inches']
 1#{'N', 'S', 'E', 'W'}#Literal['N', 'S', 'E', 'W']
-1#float, default: 0.1#float
-1#color, default: :rc:`text.color`#color
-1#{'width', 'height', 'dots', 'inches', 'x', 'y', 'xy'}, default: 'width'#Literal['width', 'height', 'dots', 'inches', 'x', 'y', 'xy']
-1#{'uv', 'xy'} or array-like, default: 'uv'#array-like|Literal['uv', 'xy']
-1#{'width', 'height', 'dots', 'inches', 'x', 'y', 'xy'}, optional#Literal['width', 'height', 'dots', 'inches', 'x', 'y', 'xy']
-1#float, default: 3#float
-1#float, default: 5#float
-1#float, default: 4.5#float
-1#{'tail', 'mid', 'middle', 'tip'}, default: 'tail'#Literal['tail', 'mid', 'middle', 'tip']
-1#color or color sequence, optional#color|color sequence
+1#{'uv', 'xy'} or array-like#array-like|Literal['uv', 'xy']
+1#{'tail', 'mid', 'middle', 'tip'}#Literal['tail', 'mid', 'middle', 'tip']
 1#`~matplotlib.quiver.Quiver`#matplotlib.quiver.Quiver
-1#float, default: 7#float
-1#{'tip', 'middle'} or float, default: 'tip'#float|Literal['tip', 'middle']
-1#bool or array-like of bool, default: False#bool|array-like of bool
+1#{'tip', 'middle'} or float#float|Literal['tip', 'middle']
+1#bool or array-like of bool#bool|array-like of bool
 1#`~matplotlib.quiver.Barbs`#matplotlib.quiver.Barbs
 1#sequence of x, y, [color]#Sequence[x]|y|tuple(color)
 1#list of `~matplotlib.patches.Polygon`#Sequence[matplotlib.patches.Polygon]
-1#{{'pre', 'post', 'mid'}}, optional#{|Literal['pre', 'post', 'mid'}]
+1#{{'pre', 'post', 'mid'}}#{|Literal['pre', 'post', 'mid'}]
 1#array-like or PIL image#array-like|PIL image
-1#{'equal', 'auto'} or float, default: :rc:`image.aspect`#float|Literal['equal', 'auto']
-1#str, default: :rc:`image.interpolation`#str
-1#{'data', 'rgba'}, default: 'data'#Literal['data', 'rgba']
-1#float or array-like, optional#float|array-like
-1#floats (left, right, bottom, top), optional#floats|tuple(left, right, bottom, top)
-1#float > 0, default: 4.0#float > 0
-1#bool, default: :rc:`image.resample`#bool
-1#{'flat', 'nearest', 'auto'}, default: :rc:`pcolor.shading`#Literal['flat', 'nearest', 'auto']
+1#{'equal', 'auto'} or float#float|Literal['equal', 'auto']
+1#{'data', 'rgba'}#Literal['data', 'rgba']
+1#floats (left, right, bottom, top)#floats|tuple(left, right, bottom, top)
+1#float > 0#float > 0
+1#{'flat', 'nearest', 'auto'}#Literal['flat', 'nearest', 'auto']
 1#`matplotlib.collections.Collection`#matplotlib.collections.Collection
-1#{'flat', 'nearest', 'gouraud', 'auto'}, optional#Literal['flat', 'nearest', 'gouraud', 'auto']
-1#bool, optional#bool
+1#{'flat', 'nearest', 'gouraud', 'auto'}#Literal['flat', 'nearest', 'gouraud', 'auto']
 1#`matplotlib.collections.QuadMesh`#matplotlib.collections.QuadMesh
 1#`.AxesImage` or `.PcolorImage` or `.QuadMesh`#AxesImage|PcolorImage|QuadMesh
 1#`.ContourSet` instance#ContourSet instance
 1#(n,) array or sequence of (n,) arrays#(n|) array|sequence of  arrays|tuple(n,)
-1#int or sequence or str, default: :rc:`hist.bins`#int|sequence|str
-1#tuple or None, default: None#tuple|None
-1#(n,) array-like or None, default: None#array-like|None|tuple(n,)
-1#bool or -1, default: False#bool|Literal[-1]
-1#array-like, scalar, or None, default: None#array-like|scalar|None
-1#{'bar', 'barstacked', 'step', 'stepfilled'}, default: 'bar'#Literal['bar', 'barstacked', 'step', 'stepfilled']
-1#{'left', 'mid', 'right'}, default: 'mid'#Literal['left', 'mid', 'right']
-1#float or None, default: None#float|None
-1#color or array-like of colors or None, default: None#color|array-like of colors|None
-1#str or None, default: None#str|None
+1#int or sequence or str#int|sequence|str
+1#tuple or None#tuple|None
+1#(n,) array-like or None#array-like|None|tuple(n,)
+1#bool or -1#bool|Literal[-1]
+1#array-like, scalar, or None#array-like|scalar|None
+1#{'bar', 'barstacked', 'step', 'stepfilled'}#Literal['bar', 'barstacked', 'step', 'stepfilled']
+1#{'left', 'mid', 'right'}#Literal['left', 'mid', 'right']
+1#color or array-like of colors or None#color|array-like of colors|None
 1#array or list of arrays#array|Sequence[arrays]
 1#array#array
 1#`.BarContainer` or list of a single `.Polygon` or list of such objects#BarContainer|list of a single .Polygon|list of such objects
-1#float, array-like or None, default: 0#float|array-like|None
+1#float, array-like or None#float|array-like|None
 1#`matplotlib.patches.StepPatch`#matplotlib.patches.StepPatch
 1#None or int or [int, int] or array-like or [array, array]#None|int|[int|int]|array-like|tuple(array, array)
-1#array-like shape(2, 2), optional#array-like shape|tuple(2, 2)
-1#array-like, shape (n, ), optional#array-like|shape|tuple(n, )
+1#array-like shape(2, 2)#array-like shape|tuple(2, 2)
 1#`~.matplotlib.collections.QuadMesh`#matplotlib.collections.QuadMesh
 1#{'default', 'psd', 'magnitude', 'angle', 'phase'}#Literal['default', 'psd', 'magnitude', 'angle', 'phase']
-1#int, default: 128#int
-1#`.Colormap`, default: :rc:`image.cmap`#Colormap
+1#`.Colormap`#Colormap
 1#*None* or (xmin, xmax)#*None*|tuple(xmin, xmax)
 1#`.AxesImage`#AxesImage
-1#float or 'present', default: 0#float|Literal['present']
-1#{'equal', 'auto', None} or float, default: 'equal'#float|Literal['equal', 'auto', None]
+1#float or 'present'#float|Literal['present']
+1#{'equal', 'auto', None} or float#float|Literal['equal', 'auto', None]
 1#`~matplotlib.image.AxesImage` or `.Line2D`#matplotlib.image.AxesImage|Line2D
-1#int, default: 100#int
-1#str, scalar or callable, optional#str|scalar|callable
+1#str, scalar or callable#str|scalar|callable
 1#tuple#tuple
 1#result#result
 1#`~matplotlib.figure.Figure`#matplotlib.figure.Figure
 1#[left, bottom, width, height]#tuple(left, bottom, width, height)
-1#`~.axes.Axes`#axes.Axes
 1#`.Figure`#Figure
 1#[left, bottom, width, height] or `~matplotlib.transforms.Bbox`#matplotlib.transforms.Bbox|tuple(left, bottom, width, height)
-1#{'both', 'active', 'original'}, default: 'both'#Literal['both', 'active', 'original']
+1#{'both', 'active', 'original'}#Literal['both', 'active', 'original']
 1#Callable[[Axes, Renderer], Bbox]#Callable[|tuple(Axes, Renderer], Bbox)
 1#Patch#Patch
 1#Cycler#Cycler
 1#iterable#iterable
 1#{'auto', 'equal'} or float#float|Literal['auto', 'equal']
-1#None or {'box', 'datalim'}, optional#None|Literal['box', 'datalim']
-1#None or str or (float, float), optional#None|str|tuple(float, float)
+1#None or {'box', 'datalim'}#None|Literal['box', 'datalim']
+1#None or str or (float, float)#None|str|tuple(float, float)
 1#{'box', 'datalim'}#Literal['box', 'datalim']
 1#(float, float) or {'C', 'SW', 'S', 'SE', 'E', 'NE', ...}#Literal['C', 'SW', 'S', 'SE', 'E', 'NE', ...]|tuple(float, float)
 1#bool or str#bool|str
-1#bool or None#bool|None
 1#`.RendererBase` subclass.#RendererBase subclass.
-1#{'major', 'minor', 'both'}, optional#Literal['major', 'minor', 'both']
-1#{'both', 'x', 'y'}, optional#Literal['both', 'x', 'y']
 1#`.Line2D` properties#Line2D properties
 1#{'sci', 'scientific', 'plain'}#Literal['sci', 'scientific', 'plain']
 1#pair of ints (m, n)#pair of ints|tuple(m, n)
 1#bool or float#bool|float
-1#{'major', 'minor', 'both'}, default: 'major'#Literal['major', 'minor', 'both']
-1#{'left', 'center', 'right'}, default: :rc:`xaxis.labellocation`#Literal['left', 'center', 'right']
+1#{'left', 'center', 'right'}#Literal['left', 'center', 'right']
 1#The limit value after call to convert(), or None if limit is None.#The limit value after call to convert|None if limit is None.|tuple()
-1#{'bottom', 'center', 'top'}, default: :rc:`yaxis.labellocation`#Literal['bottom', 'center', 'top']
+1#{'bottom', 'center', 'top'}#Literal['bottom', 'center', 'top']
 1#4-tuple or 3 tuple#4-tuple|3 tuple
 1#`matplotlib.backend_bases.MouseEvent`#matplotlib.backend_bases.MouseEvent
 1#`.RendererBase` subclass#RendererBase subclass
@@ -1172,19 +1088,24 @@ We can now run this on a module. Below is the output from analyzing `matplotlib.
 1#tuple (*nrows*, *ncols*, *index*) or int#tuple|int|tuple(*nrows*, *ncols*, *index*)
 1#list of floats#Sequence[floats]
 1#2-tuple of func, or `Transform` with an inverse.#2-tuple of func|Transform with an inverse.
-
-
-
 ```
-Our crude normalizer hasn't done too badly; the bulk of these types make sense and many of them are usable as is. Others are clear enough that we could come up with an alternative to map them to.
+
+Our crude normalizer hasn't done too badly; the bulk of these types make sense and many of them are usable as is. Others are clear enough that we could easily come up with an alternative to map them to.
 
 There's definitely some near the end of the list where we are messing up; I'll look at those in more detail later and see how we can tweak normalization. A typical cause is when my current limitation of only being able to handle one literal or tuple in a type description is violated, either by multiple of these on a line or cases where they may be nested.
 
-Nonetheless, you can see that there are only a little over 300 lines in this map file; considering how long it would take to hand-correct all the types individually and turn them into annotations, versus editing this file and automatically inserting them, this approach should pay off.
+Nonetheless, you can see that there are only a little over 200 lines in this map file; considering how long it would take to hand-correct all the types individually and turn them into annotations, versus editing this file and automatically inserting them, this approach should pay off.
 
 ## Next Time
 
-That's enough for one day; next time I will look at improving the normalization, collecting a mapping for a whole package, and, finally, applying the types in the mapping file to our stubs.
+That's enough for one day; in subsequent posts I will look at:
+
+- improving the normalization; there's some easy low-hanging fruit that can be addressed with little risk
+- collecting a mapping for a whole package at a time instead of a single module
+- maintaining persistent map files, a general and ones that are package-specific. For example, something like `float` would go in the general mapping file, while `list[Line2D]` would go in a `matplotlib` mapping file. Once we have these, we can check if a type already exists in the general mapping file, or the one for that package, and if so, we can omit it from the output. Then we only have to update what is left. This will make it easier to maintain stubs when new versions of a package are released.
+- applying the types in the various mapping files to our stubs.
+
+
 
 
 

@@ -165,7 +165,7 @@ post-container"><p>Welcome back to this series on creating type stubs for scient
     --------
     Examples of usage.
     
-</code></pre><p><code>self</code> is not included in the Parameters section of class methods.</p><p>It should be noted that numpydoc is a documentation convention meant for human consumption. This means that while parameters are frequently documented and the documentation includes type information, it is not the same as formal Python type annotations. In order to go from a type described in a numpydoc string to a Python type annotation, we&rsquo;re going to have to do work.</p><h2 id=the-approach>The Approach</h2><p>When I generated the matplotlib stubs, I wrote a parser that was specific to matplot lib. It was hacky and ugly, because I was trying to automate as much as possible. That meant some degree of &lsquo;standardized&rsquo; munging, e.g. where there was more than one type described, separated by &ldquo;,&rdquo; or &ldquo;or&rdquo;, I could turn that into a union. There were a lot of cases that either couldn&rsquo;t be that easily handled or were infrequent enough to not merit spending a lot of time on, and for those I resorted to a mapping in a dictionary.</p><p>I don&rsquo;t want to reuse that ugly code here; I&rsquo;ll try to do something a bit cleaner, but in turn, I&rsquo;m going to rely a lot more on a mapping approach, which requires a human to create the map. But we can help with this process, as well as make it generalize better to other packages, by writing some code to create an initial version of the map. So I am going to tackle the problem in three stages, two of which are automated:</p><ul><li>an &lsquo;analyze&rsquo; stage that extracts all the types, buckets them by frequency, does a best-effort attempt at cleaning them up, and then writes the resulting mapping to a file</li><li>a &lsquo;human in the loop&rsquo; stage where that file is inspected and cleaned up by a human</li><li>an &lsquo;apply&rsquo; stage where we generate stubs using the skeleton we developed in the last post, but making use of the map we created to insert types</li></ul><h2 id=the-analyzer>The Analyzer</h2><h3 id=parsing-the-docstrings>Parsing the Docstrings</h3><p>As I mentioned, I wrote a parser for matplotlib, and while I could use it, its not the cleanest code. And once I learned about numpydoc, Michael Droettboom, the creator of matplotlib and a member of my team, pointed out to me that there is a sphinx extension called &ldquo;napoleon&rdquo; that <a href=https://github.com/sphinx-doc/sphinx/blob/5.x/sphinx/ext/napoleon/docstring.py>parses these docstrings</a>. So I am going to do like all great artists and steal in the code below. An advantage of going this route is that napoleon also supports Google docstring format, so I can easily extend the parser later for that if I choose.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>import</span> abc
+</code></pre><p><code>self</code> is not included in the Parameters section of class methods.</p><p>It should be noted that numpydoc is a documentation convention meant for human consumption. This means that while parameters are frequently documented and the documentation includes type information, it is not the same as formal Python type annotations. In order to go from a type described in a numpydoc string to a Python type annotation, we&rsquo;re going to have to do work.</p><h2 id=the-approach>The Approach</h2><p>When I generated the matplotlib stubs, I wrote a parser that was specific to matplot lib. It was hacky and ugly, because I was trying to automate as much as possible. That meant some degree of &lsquo;standardized&rsquo; munging, e.g. where there was more than one type described, separated by &ldquo;,&rdquo; or &ldquo;or&rdquo;, I could turn that into a union. There were a lot of cases that either couldn&rsquo;t be that easily handled or were infrequent enough to not merit spending a lot of time on, and for those I resorted to a mapping in a dictionary.</p><p>I don&rsquo;t want to reuse that ugly code here; I&rsquo;ll try to do something a bit cleaner, but in turn, I&rsquo;m going to rely a lot more on a mapping approach, which requires a human to create the map. But we can help with this process, as well as make it generalize better to other packages, by writing some code to create an initial version of the map. So I am going to tackle the problem in three stages, two of which are automated:</p><ul><li>an &lsquo;analyze&rsquo; stage that extracts all the types, buckets them by frequency, does a best-effort attempt at cleaning them up, and then writes the resulting mapping to a file</li><li>a &lsquo;human in the loop&rsquo; stage where that file is inspected and cleaned up by a human</li><li>an &lsquo;apply&rsquo; stage where we generate stubs using the skeleton we developed in the last post, but making use of the map we created to insert types</li></ul><h3 id=parsing-the-docstrings>Parsing the Docstrings</h3><p>As I mentioned, I wrote a parser for matplotlib, and while I could use it, its not the cleanest code. And once I learned about numpydoc, Michael Droettboom, the creator of matplotlib and a member of my team, pointed out to me that there is a sphinx extension called &ldquo;napoleon&rdquo; that <a href=https://github.com/sphinx-doc/sphinx/blob/5.x/sphinx/ext/napoleon/docstring.py>parses these docstrings</a>. So I am going to do like all great artists and steal in the code below. An advantage of going this route is that napoleon also supports Google docstring format, so I can easily extend the parser later for that if I choose.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>import</span> abc
 </span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> ast <span style=color:#ff79c6>import</span> Num
 </span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> collections
 </span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> re
@@ -202,6 +202,8 @@ post-container"><p>Welcome back to this series on creating type stubs for scient
 </span></span><span style=display:flex><span>    _xref_or_code_regex <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(
 </span></span><span style=display:flex><span>        <span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;((?::(?:[a-zA-Z0-9]+[\-_+:.])*[a-zA-Z0-9]+:`.+?`)|&#39;</span>
 </span></span><span style=display:flex><span>        <span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;(?:``.+?``))&#39;</span>)
+</span></span><span style=display:flex><span>    _remove_default_val <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*),[ \t]*default[ \t]*.*$&#39;</span>)
+</span></span><span style=display:flex><span>    _remove_optional <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*),[ \t]*[Oo]ptional$&#39;</span>)
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> __init__(self):
 </span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_attributes <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
@@ -310,6 +312,19 @@ post-container"><p>Welcome back to this series on creating type stubs for scient
 </span></span><span style=display:flex><span>        fields <span style=color:#ff79c6>=</span> []
 </span></span><span style=display:flex><span>        <span style=color:#ff79c6>while</span> <span style=color:#ff79c6>not</span> self<span style=color:#ff79c6>.</span>_is_section_break():
 </span></span><span style=display:flex><span>            name, typ <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_consume_field(prefer_type)
+</span></span><span style=display:flex><span>            
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># Remove , optional ... from end</span>
+</span></span><span style=display:flex><span>            m <span style=color:#ff79c6>=</span> DocstringParserBase<span style=color:#ff79c6>.</span>_remove_optional<span style=color:#ff79c6>.</span>match(typ)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> m:
+</span></span><span style=display:flex><span>                typ <span style=color:#ff79c6>=</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>1</span>)
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># Remove , default ... from end</span>
+</span></span><span style=display:flex><span>            m <span style=color:#ff79c6>=</span> DocstringParserBase<span style=color:#ff79c6>.</span>_remove_default_val<span style=color:#ff79c6>.</span>match(typ)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> m:
+</span></span><span style=display:flex><span>                typ <span style=color:#ff79c6>=</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>1</span>)
+</span></span><span style=display:flex><span>                
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># Remove (default) from within</span>
+</span></span><span style=display:flex><span>            typ <span style=color:#ff79c6>=</span> typ<span style=color:#ff79c6>.</span>replace(<span style=color:#f1fa8c>&#39; (default)&#39;</span>, <span style=color:#f1fa8c>&#39;&#39;</span>)
+</span></span><span style=display:flex><span>            
 </span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> multiple <span style=color:#ff79c6>and</span> name:
 </span></span><span style=display:flex><span>                <span style=color:#ff79c6>for</span> n <span style=color:#ff79c6>in</span> name<span style=color:#ff79c6>.</span>split(<span style=color:#f1fa8c>&#34;,&#34;</span>):
 </span></span><span style=display:flex><span>                    fields<span style=color:#ff79c6>.</span>append((n<span style=color:#ff79c6>.</span>strip(), typ))
@@ -426,19 +441,17 @@ post-container"><p>Welcome back to this series on creating type stubs for scient
 </span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;  name </span><span style=color:#f1fa8c>{</span>n<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>: type </span><span style=color:#f1fa8c>{</span>t<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
 </span></span></code></pre></div><p>And we get the output:</p><pre tabindex=0><code>Params
 ------
-  name prop: type {&#34;colors&#34;, &#34;sizes&#34;}, default: &#34;colors&#34;
-  name num: type int, None, &#34;auto&#34; (default), array-like, or `~.ticker.Locator`
-  name fmt: type str, `~matplotlib.ticker.Formatter`, or None (default)
-  name func: type function, default: ``lambda x: x``
+  name prop: type {&#34;colors&#34;, &#34;sizes&#34;}
+  name num: type int, None, &#34;auto&#34; , array-like, or `~.ticker.Locator`
+  name fmt: type str, `~matplotlib.ticker.Formatter`, or None
+  name func: type function
   name **kwargs: type 
 Returns
 -------
   name handles: type list of `.Line2D`
   name labels: type list of str
-</code></pre><p>Of course, this has just got the raw fields out of the docstring; there&rsquo;s no normalization or conversion to something closer to Python type annotations yet. In the next section we will work on addressing that.</p><h3 id=best-effort-type-cleaning>Best-Effort Type Cleaning</h3><p>Let&rsquo;s first focus on our test case.</p><p>The first thing we can do is throw away anything that starts with &ldquo;, default &mldr;&rdquo;, as we will get the default from the definition itself. For the <code>num</code> parameter, the default was specified differently, by annotating one of the options with &ldquo;(default)&rdquo;, so we can erase that string too. We then are left with comma-separated strings (where the last element is separated by &ldquo;or&rdquo; instead). However, we have the constrained parameter <code>prop</code> that has a list of possible values, and these are comma separated too. Plus some types may be tuples, enclosed in parentheses. So we should start with such compound types and then after that we can turn the lists of types into unions. At least in matplotlib, some types start with &lsquo;.&rsquo; (meaning they are classes defined in the same file, I believe); we can strip those off. And while we&rsquo;re at it, some start with &lsquo;~&rsquo;, which seems redundant too (I&rsquo;m not sure what it is supposed to denote; I&rsquo;ll try find out). Let&rsquo;s add a function <code>normalize_type</code> to do all this:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>import</span> re
+</code></pre><p>Of course, this has just got the raw fields out of the docstring (minus default/optional bits); there&rsquo;s no normalization or conversion to something closer to Python type annotations yet. In the next section we will work on addressing that.</p><h3 id=best-effort-type-cleaning>Best-Effort Type Cleaning</h3><p>Let&rsquo;s first focus on our test case.</p><p>The first thing we can do is throw away anything that starts with &ldquo;, default &mldr;&rdquo;, as we will get the default from the definition itself. For the <code>num</code> parameter, the default was specified differently, by annotating one of the options with &ldquo;(default)&rdquo;, so we can erase that string too. We then are left with comma-separated strings (where the last element is separated by &ldquo;or&rdquo; instead). However, we have the constrained parameter <code>prop</code> that has a list of possible values, and these are comma separated too. Plus some types may be tuples, enclosed in parentheses. So we should start with such compound types and then after that we can turn the lists of types into unions. At least in matplotlib, some types start with &lsquo;.&rsquo; (meaning they are classes defined in the same file, I believe); we can strip those off. And while we&rsquo;re at it, some start with &lsquo;~&rsquo;, which seems redundant too (I&rsquo;m not sure what it is supposed to denote; I&rsquo;ll try find out). Let&rsquo;s add a function <code>normalize_type</code> to do all this:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>import</span> re
 </span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>_remove_default_val <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*),[ \t]*default[ \t]*.*$&#39;</span>)
-</span></span><span style=display:flex><span>_remove_optional <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*),[ \t]*[Oo]ptional$&#39;</span>)
 </span></span><span style=display:flex><span>_restricted_val <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*){(.*)}(.*)$&#39;</span>)
 </span></span><span style=display:flex><span>_tuple1 <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*)\((.*)\)(.*)$&#39;</span>)  <span style=color:#6272a4># using ()</span>
 </span></span><span style=display:flex><span>_tuple2 <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*)\[(.*)\](.*)$&#39;</span>)  <span style=color:#6272a4># using []</span>
@@ -447,16 +460,6 @@ Returns
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>normalize_type</span>(s: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>str</span>:
-</span></span><span style=display:flex><span>    <span style=color:#6272a4># Remove , optional ... from end</span>
-</span></span><span style=display:flex><span>    m <span style=color:#ff79c6>=</span> _remove_optional<span style=color:#ff79c6>.</span>match(s)
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> m:
-</span></span><span style=display:flex><span>        s <span style=color:#ff79c6>=</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>1</span>)
-</span></span><span style=display:flex><span>    <span style=color:#6272a4># Remove , default ... from end</span>
-</span></span><span style=display:flex><span>    m <span style=color:#ff79c6>=</span> _remove_default_val<span style=color:#ff79c6>.</span>match(s)
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> m:
-</span></span><span style=display:flex><span>        s <span style=color:#ff79c6>=</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>1</span>)
-</span></span><span style=display:flex><span>    <span style=color:#6272a4># Remove (default) from within</span>
-</span></span><span style=display:flex><span>    s <span style=color:#ff79c6>=</span> s<span style=color:#ff79c6>.</span>replace(<span style=color:#f1fa8c>&#39;(default)&#39;</span>, <span style=color:#f1fa8c>&#39;&#39;</span>)
 </span></span><span style=display:flex><span>    <span style=color:#6272a4># Handle a restricted value set</span>
 </span></span><span style=display:flex><span>    m <span style=color:#ff79c6>=</span> _restricted_val<span style=color:#ff79c6>.</span>match(s)
 </span></span><span style=display:flex><span>    l <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
@@ -764,64 +767,53 @@ Returns
 </span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>analyze_module</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>):
 </span></span><span style=display:flex><span>    process_module(m, _analyze, _targeter, post_processor<span style=color:#ff79c6>=</span>_post_process, 
 </span></span><span style=display:flex><span>        state<span style=color:#ff79c6>=</span>(Counter(), {}, {}))
-</span></span></code></pre></div><h2 id=testing-the-analysis>Testing the Analysis</h2><p>We can now run this on a module. Below is the output from analyzing <code>matplotlib.axes</code>. Each line is a count followed by the original type and the normalized type. Later we will have the opportunity to edit this file to correct the normalized types before they get injected.</p><pre tabindex=0><code>42#bool, default: False#bool
-30#bool, default: True#bool
-21#float, optional#float
+</span></span></code></pre></div><h2 id=testing-the-analysis>Testing the Analysis</h2><p>We can now run this on a module. Below is the output from analyzing <code>matplotlib.axes</code>. Each line is a count followed by the original type and the normalized type. Later we will have the opportunity to edit this file to correct the normalized types before they get injected.</p><pre tabindex=0><code>100#float#float
+94#bool#bool
+35#array-like#array-like
+27#int#int
+25#str#str
+23#dict#dict
+23#float or array-like#float|array-like
 19##
-19#float#float
-17#bool#bool
-16#float, default: None#float
-15#array-like, optional#array-like
 14#1-D array#1-D array
-13#float or array-like#float|array-like
-11#array-like#array-like
-10#str#str
-10#dict#dict
-10#dict, optional#dict
-10#float, default: 0#float
-8#indexable object, optional#indexable object
-8#int, optional#int
-7#(float, float)#tuple(float, float)
-7#float, default: 1#float
+10#float or None#float|None
+10#1D or 2D array-like#1D|2D array-like
+9#(float, float)#tuple(float, float)
+9#bool or None#bool|None
+8#indexable object#indexable object
+7#color#color
 7#`~matplotlib.lines.Line2D`#matplotlib.lines.Line2D
-7#str, optional#str
-7#float, default: 2#float
-7#callable or ndarray, default: `.window_hanning`#callable|ndarray
-7#{&#39;default&#39;, &#39;onesided&#39;, &#39;twosided&#39;}, optional#Literal[&#39;default&#39;, &#39;onesided&#39;, &#39;twosided&#39;]
-7#int, default: 0#int
+7#callable or ndarray#callable|ndarray
+7#{&#39;default&#39;, &#39;onesided&#39;, &#39;twosided&#39;}#Literal[&#39;default&#39;, &#39;onesided&#39;, &#39;twosided&#39;]
 6#list of `.Line2D`#list of .Line2D
-6#1D or 2D array-like, optional#1D|2D array-like
-6#float or None#float|None
-5#list#list
-5#str or `~matplotlib.colors.Colormap`, default: :rc:`image.cmap`#str|matplotlib.colors.Colormap
+6#list#list
+6#array (length N) or scalar#array|scalar|tuple(length N)
+5#{&#39;center&#39;, &#39;left&#39;, &#39;right&#39;}#Literal[&#39;center&#39;, &#39;left&#39;, &#39;right&#39;]
+5#str or `~matplotlib.colors.Colormap`#str|matplotlib.colors.Colormap
+5#`~matplotlib.colors.Normalize`#matplotlib.colors.Normalize
 5#1-D array or sequence#1-D array|sequence
-4#1D or 2D array-like#1D|2D array-like
-4#`~matplotlib.colors.Normalize`, optional#matplotlib.colors.Normalize
 4#(M, N) array-like#array-like|tuple(M, N)
-4#int, default: 256#int
-4#{&#39;none&#39;, &#39;mean&#39;, &#39;linear&#39;} or callable, default: &#39;none&#39;#callable|Literal[&#39;none&#39;, &#39;mean&#39;, &#39;linear&#39;]
+4#{&#39;none&#39;, &#39;mean&#39;, &#39;linear&#39;} or callable#callable|Literal[&#39;none&#39;, &#39;mean&#39;, &#39;linear&#39;]
 4#Transform#Transform
 4#{&#39;center&#39;, &#39;top&#39;, &#39;bottom&#39;, &#39;baseline&#39;, &#39;center_baseline&#39;}#Literal[&#39;center&#39;, &#39;top&#39;, &#39;bottom&#39;, &#39;baseline&#39;, &#39;center_baseline&#39;]
-4#{&#39;center&#39;, &#39;left&#39;, &#39;right&#39;}#Literal[&#39;center&#39;, &#39;left&#39;, &#39;right&#39;]
 3#`.Bbox`#Bbox
 3#{&#39;top&#39;, &#39;bottom&#39;, &#39;left&#39;, &#39;right&#39;} or float#float|Literal[&#39;top&#39;, &#39;bottom&#39;, &#39;left&#39;, &#39;right&#39;]
-3#dict, default: None#dict
-3#str, default: &#39;&#39;#str
-3#float, default: 10#float
-3#{&#39;mask&#39;, &#39;clip&#39;}, default: &#39;mask&#39;#Literal[&#39;mask&#39;, &#39;clip&#39;]
+3#{&#39;mask&#39;, &#39;clip&#39;}#Literal[&#39;mask&#39;, &#39;clip&#39;]
+3#callable#callable
+3#{&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}#Literal[&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;]
 3#`.BarContainer`#BarContainer
-3#array-like, default: None#array-like
-3#array-like, default: [1, 2, ..., n]#array-like
-3#color#color
+3#float or array-like, shape (n, )#float|array-like|shape|tuple(n, )
+3#color or color sequence#color|color sequence
 3#array (length N)#array|tuple(length N)
-3#array (length N) or scalar#array|scalar|tuple(length N)
-3#array (length N) or scalar, default: 0#array|scalar|tuple(length N)
-3#array of bool (length N), optional#Sequence[bool]|tuple(length N)
+3#array of bool (length N)#Sequence[bool]|tuple(length N)
 3#`.PolyCollection`#PolyCollection
 3#2D array-like#2D array-like
-3#int, default: 0 (no overlap)#int
+3#str or None#str|None
+3#array-like, shape (n, )#array-like|shape|tuple(n, )
+3#`~.axes.Axes`#axes.Axes
+3#{&#39;both&#39;, &#39;x&#39;, &#39;y&#39;}#Literal[&#39;both&#39;, &#39;x&#39;, &#39;y&#39;]
 2#`.Text`#Text
-2#list of str, optional#Sequence[str]
+2#list of str#Sequence[str]
 2#[x0, y0, width, height]#tuple(x0, y0, width, height)
 2#`.Transform`#Transform
 2#`.Axes`#Axes
@@ -829,229 +821,154 @@ Returns
 2#4-tuple of `.patches.ConnectionPatch`#4-tuple of .patches.ConnectionPatch
 2#2-tuple of func, or Transform with an inverse#2-tuple of func|Transform with an inverse
 2#axes._secondary_axes.SecondaryAxis#axes._secondary_axes.SecondaryAxis
-2#bool or None, default: None#bool|None
+2#str or `.Artist` or `.Transform` or callable or (float, float)#str|Artist|Transform|callable|tuple(float, float)
 2#`~matplotlib.patches.Polygon`#matplotlib.patches.Polygon
-2#list of colors, default: :rc:`lines.color`#Sequence[colors]
-2#{&#39;solid&#39;, &#39;dashed&#39;, &#39;dashdot&#39;, &#39;dotted&#39;}, optional#Literal[&#39;solid&#39;, &#39;dashed&#39;, &#39;dashdot&#39;, &#39;dotted&#39;]
+2#list of colors#Sequence[colors]
+2#{&#39;solid&#39;, &#39;dashed&#39;, &#39;dashdot&#39;, &#39;dotted&#39;}#Literal[&#39;solid&#39;, &#39;dashed&#39;, &#39;dashdot&#39;, &#39;dotted&#39;]
 2#`~matplotlib.collections.LineCollection`#matplotlib.collections.LineCollection
-2#float or array-like, default: 1#float|array-like
-2#float or array-like, default: :rc:`lines.linewidth`#float|array-like
 2#array-like or scalar#array-like|scalar
-2#sequence, optional#sequence
-2#callable, default: `.mlab.detrend_none` (no detrending)#callable
-2#int, default: 10#int
+2#sequence#sequence
 2#array (length ``2*maxlags+1``)#array|tuple(length ``2*maxlags+1``)
 2#array  (length ``2*maxlags+1``)#array|tuple(length ``2*maxlags+1``)
 2#`.LineCollection` or `.Line2D`#LineCollection|Line2D
 2#`.Line2D` or None#Line2D|None
 2#array-like of length n#array-like of length n
-2#float or array-like, default: 0.8#float|array-like
-2#float or array-like, default: 0#float|array-like
-2#{&#39;center&#39;, &#39;edge&#39;}, default: &#39;center&#39;#Literal[&#39;center&#39;, &#39;edge&#39;]
-2#float or array-like, shape(N,) or shape(2, N), optional#float|array-like|shape(N|)|shape|tuple(2, N)
+2#{&#39;center&#39;, &#39;edge&#39;}#Literal[&#39;center&#39;, &#39;edge&#39;]
+2#1D array-like#1D array-like
+2#float or array-like, shape(N,) or shape(2, N)#float|array-like|shape(N|)|shape|tuple(2, N)
+2#int or (int, int)#int|tuple(int, int)
 2#Array or a sequence of vectors.#Array|a sequence of vectors.
-2#float, default: ``Line2D.zorder = 2``#float
 2#list of dicts#Sequence[dicts]
-2#float or array-like, shape (n, )#float|array-like|shape|tuple(n, )
-2#{&#39;linear&#39;, &#39;log&#39;}, default: &#39;linear&#39;#Literal[&#39;linear&#39;, &#39;log&#39;]
-2#color or color sequence#color|color sequence
-2#{&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}, optional#Literal[&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;]
-2#{&#39;upper&#39;, &#39;lower&#39;}, default: :rc:`image.origin`#Literal[&#39;upper&#39;, &#39;lower&#39;]
+2#{&#39;linear&#39;, &#39;log&#39;}#Literal[&#39;linear&#39;, &#39;log&#39;]
+2#{&#39;width&#39;, &#39;height&#39;, &#39;dots&#39;, &#39;inches&#39;, &#39;x&#39;, &#39;y&#39;, &#39;xy&#39;}#Literal[&#39;width&#39;, &#39;height&#39;, &#39;dots&#39;, &#39;inches&#39;, &#39;x&#39;, &#39;y&#39;, &#39;xy&#39;]
+2#{&#39;upper&#39;, &#39;lower&#39;}#Literal[&#39;upper&#39;, &#39;lower&#39;]
 2#`~matplotlib.image.AxesImage`#matplotlib.image.AxesImage
-2#{&#39;none&#39;, None, &#39;face&#39;, color, color sequence}, optional#Literal[&#39;none&#39;, None, &#39;face&#39;, color, color sequence]
-2#tuple or array-like, default: ``(0, N)``, ``(0, M)``#tuple|array-like
-2#int or array-like, optional#int|array-like
+2#{&#39;none&#39;, None, &#39;face&#39;, color, color sequence}#Literal[&#39;none&#39;, None, &#39;face&#39;, color, color sequence]
+2#tuple or array-like#tuple|array-like
+2#int or array-like#int|array-like
 2#`~.contour.QuadContourSet`#contour.QuadContourSet
-2#{&#39;vertical&#39;, &#39;horizontal&#39;}, default: &#39;vertical&#39;#Literal[&#39;vertical&#39;, &#39;horizontal&#39;]
-2#array-like, shape (n, )#array-like|shape|tuple(n, )
+2#{&#39;vertical&#39;, &#39;horizontal&#39;}#Literal[&#39;vertical&#39;, &#39;horizontal&#39;]
 2#2D array#2D array
 2#1D array#1D array
 2#1-D arrays or sequences#1-D arrays|sequences
 2#{&#39;default&#39;, &#39;linear&#39;, &#39;dB&#39;}#Literal[&#39;default&#39;, &#39;linear&#39;, &#39;dB&#39;]
-2#bool, default: True.#bool
-2#array-like, default: 0.5#array-like
-2#`~.axes.Axes`, optional#axes.Axes
 2#float greater than -0.5#float greater than -0.5
-2#bool or None, default: True#bool|None
-2#{&#39;both&#39;, &#39;x&#39;, &#39;y&#39;}, default: &#39;both&#39;#Literal[&#39;both&#39;, &#39;x&#39;, &#39;y&#39;]
 2#bool or &#39;line&#39;#bool|Literal[&#39;line&#39;]
-2#bool or None, optional#bool|None
-2#{&#39;x&#39;, &#39;y&#39;, &#39;both&#39;}, default: &#39;both&#39;#Literal[&#39;x&#39;, &#39;y&#39;, &#39;both&#39;]
-2#float, default: :rc:`axes.labelpad`#float
-2#bool or None, default: False#bool|None
+2#{&#39;major&#39;, &#39;minor&#39;, &#39;both&#39;}#Literal[&#39;major&#39;, &#39;minor&#39;, &#39;both&#39;]
+2#{&#39;x&#39;, &#39;y&#39;, &#39;both&#39;}#Literal[&#39;x&#39;, &#39;y&#39;, &#39;both&#39;]
 2#{&#34;linear&#34;, &#34;log&#34;, &#34;symlog&#34;, &#34;logit&#34;, ...} or `.ScaleBase`#ScaleBase|Literal[&#34;linear&#34;, &#34;log&#34;, &#34;symlog&#34;, &#34;logit&#34;, ...]
-2#str or None#str|None
 2#`.MouseButton`#MouseButton
 2#Axes#Axes
-1#{&#39;center&#39;, &#39;left&#39;, &#39;right&#39;}, str, default: &#39;center&#39;#str|Literal[&#39;center&#39;, &#39;left&#39;, &#39;right&#39;]
-1#{&#39;center&#39;, &#39;left&#39;, &#39;right&#39;}, default: :rc:`axes.titlelocation`#Literal[&#39;center&#39;, &#39;left&#39;, &#39;right&#39;]
-1#float, default: :rc:`axes.titley`#float
-1#float, default: :rc:`axes.titlepad`#float
-1#sequence of `.Artist`, optional#Sequence[Artist]
+1#{&#39;center&#39;, &#39;left&#39;, &#39;right&#39;}, str#str|Literal[&#39;center&#39;, &#39;left&#39;, &#39;right&#39;]
+1#sequence of `.Artist`#Sequence[Artist]
 1#`~matplotlib.legend.Legend`#matplotlib.legend.Legend
 1#number#number
 1#ax#ax
-1#color, default: &#39;none&#39;#color
-1#color, default: &#39;0.5&#39;#color
-1#float, default: 0.5#float
-1#float, default: 4.99#float
-1#(float, float), default: *xy*#tuple(float, float)
-1#str or `.Artist` or `.Transform` or callable or (float, float), default: &#39;data&#39;#str|Artist|Transform|callable|tuple(float, float)
-1#str or `.Artist` or `.Transform` or callable or (float, float), default: value of *xycoords*#str|Artist|Transform|callable|tuple(float, float)
 1#`.Annotation`#Annotation
 1#`.Line2D`#Line2D
 1#array-like or list of array-like#array-like|list of array-like
-1#{&#39;horizontal&#39;, &#39;vertical&#39;}, default: &#39;horizontal&#39;#Literal[&#39;horizontal&#39;, &#39;vertical&#39;]
-1#color or list of colors, default: :rc:`lines.color`#color|Sequence[colors]
-1#str or tuple or list of such values, default: &#39;solid&#39;#str|tuple|list of such values
+1#{&#39;horizontal&#39;, &#39;vertical&#39;}#Literal[&#39;horizontal&#39;, &#39;vertical&#39;]
+1#color or list of colors#color|Sequence[colors]
+1#str or tuple or list of such values#str|tuple|list of such values
 1#list of `.EventCollection`#Sequence[EventCollection]
-1#timezone string or `datetime.tzinfo`, default: :rc:`timezone`#timezone string|datetime.tzinfo
-1#{&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}, default: &#39;pre&#39;#Literal[&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;]
-1#str, default: &#39;%g&#39;#str
-1#{&#39;edge&#39;, &#39;center&#39;}, default: &#39;edge&#39;#Literal[&#39;edge&#39;, &#39;center&#39;]
+1#timezone string or `datetime.tzinfo`#timezone string|datetime.tzinfo
+1#{&#39;edge&#39;, &#39;center&#39;}#Literal[&#39;edge&#39;, &#39;center&#39;]
 1#list of `.Text`#Sequence[Text]
 1#sequence of tuples (*xmin*, *xwidth*)#Sequence[tuples]|tuple(*xmin*, *xwidth*)
 1#(*ymin*, *yheight*)#tuple(*ymin*, *yheight*)
 1#`~.collections.BrokenBarHCollection`#collections.BrokenBarHCollection
-1#array-like, default: (0, 1, ..., len(heads) - 1)#array-like
-1#str, default: &#39;C3-&#39; (&#39;C2-&#39; in classic mode)#str
-1#str, default: &#39;vertical&#39;#str
-1#str, default: None#str
 1#`.StemContainer`#StemContainer
-1#1D array-like#1D array-like
-1#list, default: None#list
-1#None or str or callable, default: None#None|str|callable
-1#float, default: 0.6#float
-1#float or None, default: 1.1#float|None
-1#float, default: 0 degrees#float
-1#(float, float), default: (0, 0)#tuple(float, float)
-1#color, default: None#color
-1#float, default: :rc:`errorbar.capsize`#float
-1#int or (int, int), default: 1#int|tuple(int, int)
+1#None or str or callable#None|str|callable
 1#`.ErrorbarContainer`#ErrorbarContainer
-1#float or (float, float), default: 1.5#float|tuple(float, float)
-1#1D array-like, optional#1D array-like
-1#float or array-like, default: None#float|array-like
+1#float or (float, float)#float|tuple(float, float)
 1#color or sequence or sequence of color or None#color|sequence|Sequence[color]|None
 1#color or sequence of color or {&#39;face&#39;, &#39;none&#39;} or None#color|Sequence[color]|None|Literal[&#39;face&#39;, &#39;none&#39;]
-1#int#int
-1#callable#callable
 1#c#c
 1#array(N, 4) or None#array|None|tuple(N, 4)
 1#edgecolors#edgecolors
-1#float or array-like, shape (n, ), optional#float|array-like|shape|tuple(n, )
-1#array-like or list of colors or color, optional#array-like|Sequence[colors]|color
-1#`~.markers.MarkerStyle`, default: :rc:`scatter.marker`#markers.MarkerStyle
-1#`~matplotlib.colors.Normalize`, default: None#matplotlib.colors.Normalize
-1#{&#39;face&#39;, &#39;none&#39;, *None*} or color or sequence of color, default: :rc:`scatter.edgecolors`#color|Sequence[color]|Literal[&#39;face&#39;, &#39;none&#39;, *None*]
+1#array-like or list of colors or color#array-like|Sequence[colors]|color
+1#`~.markers.MarkerStyle`#markers.MarkerStyle
+1#{&#39;face&#39;, &#39;none&#39;, *None*} or color or sequence of color#color|Sequence[color]|Literal[&#39;face&#39;, &#39;none&#39;, *None*]
 1#`~matplotlib.collections.PathCollection`#matplotlib.collections.PathCollection
-1#int or (int, int), default: 100#int|tuple(int, int)
-1#&#39;log&#39; or int or sequence, default: None#Literal[&#39;log&#39;]|int|sequence
-1#int &gt; 0, default: *None*#int &gt; 0
-1#bool, default: *False*#bool
-1#4-tuple of float, default: *None*#4-tuple of float
+1#&#39;log&#39; or int or sequence#Literal[&#39;log&#39;]|int|sequence
+1#int &gt; 0#int &gt; 0
+1#4-tuple of float#4-tuple of float
 1#`~matplotlib.collections.PolyCollection`#matplotlib.collections.PolyCollection
-1#float, default: 0.001#float
-1#float or None, default: 3*width#float|None
-1#float or None, default: 1.5*head_width#float|None
-1#{&#39;full&#39;, &#39;left&#39;, &#39;right&#39;}, default: &#39;full&#39;#Literal[&#39;full&#39;, &#39;left&#39;, &#39;right&#39;]
+1#{&#39;full&#39;, &#39;left&#39;, &#39;right&#39;}#Literal[&#39;full&#39;, &#39;left&#39;, &#39;right&#39;]
 1#`.FancyArrow`#FancyArrow
 1#`matplotlib.quiver.Quiver`#matplotlib.quiver.Quiver
-1#{&#39;axes&#39;, &#39;figure&#39;, &#39;data&#39;, &#39;inches&#39;}, default: &#39;axes&#39;#Literal[&#39;axes&#39;, &#39;figure&#39;, &#39;data&#39;, &#39;inches&#39;]
+1#{&#39;axes&#39;, &#39;figure&#39;, &#39;data&#39;, &#39;inches&#39;}#Literal[&#39;axes&#39;, &#39;figure&#39;, &#39;data&#39;, &#39;inches&#39;]
 1#{&#39;N&#39;, &#39;S&#39;, &#39;E&#39;, &#39;W&#39;}#Literal[&#39;N&#39;, &#39;S&#39;, &#39;E&#39;, &#39;W&#39;]
-1#float, default: 0.1#float
-1#color, default: :rc:`text.color`#color
-1#{&#39;width&#39;, &#39;height&#39;, &#39;dots&#39;, &#39;inches&#39;, &#39;x&#39;, &#39;y&#39;, &#39;xy&#39;}, default: &#39;width&#39;#Literal[&#39;width&#39;, &#39;height&#39;, &#39;dots&#39;, &#39;inches&#39;, &#39;x&#39;, &#39;y&#39;, &#39;xy&#39;]
-1#{&#39;uv&#39;, &#39;xy&#39;} or array-like, default: &#39;uv&#39;#array-like|Literal[&#39;uv&#39;, &#39;xy&#39;]
-1#{&#39;width&#39;, &#39;height&#39;, &#39;dots&#39;, &#39;inches&#39;, &#39;x&#39;, &#39;y&#39;, &#39;xy&#39;}, optional#Literal[&#39;width&#39;, &#39;height&#39;, &#39;dots&#39;, &#39;inches&#39;, &#39;x&#39;, &#39;y&#39;, &#39;xy&#39;]
-1#float, default: 3#float
-1#float, default: 5#float
-1#float, default: 4.5#float
-1#{&#39;tail&#39;, &#39;mid&#39;, &#39;middle&#39;, &#39;tip&#39;}, default: &#39;tail&#39;#Literal[&#39;tail&#39;, &#39;mid&#39;, &#39;middle&#39;, &#39;tip&#39;]
-1#color or color sequence, optional#color|color sequence
+1#{&#39;uv&#39;, &#39;xy&#39;} or array-like#array-like|Literal[&#39;uv&#39;, &#39;xy&#39;]
+1#{&#39;tail&#39;, &#39;mid&#39;, &#39;middle&#39;, &#39;tip&#39;}#Literal[&#39;tail&#39;, &#39;mid&#39;, &#39;middle&#39;, &#39;tip&#39;]
 1#`~matplotlib.quiver.Quiver`#matplotlib.quiver.Quiver
-1#float, default: 7#float
-1#{&#39;tip&#39;, &#39;middle&#39;} or float, default: &#39;tip&#39;#float|Literal[&#39;tip&#39;, &#39;middle&#39;]
-1#bool or array-like of bool, default: False#bool|array-like of bool
+1#{&#39;tip&#39;, &#39;middle&#39;} or float#float|Literal[&#39;tip&#39;, &#39;middle&#39;]
+1#bool or array-like of bool#bool|array-like of bool
 1#`~matplotlib.quiver.Barbs`#matplotlib.quiver.Barbs
 1#sequence of x, y, [color]#Sequence[x]|y|tuple(color)
 1#list of `~matplotlib.patches.Polygon`#Sequence[matplotlib.patches.Polygon]
-1#{{&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}}, optional#{|Literal[&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}]
+1#{{&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}}#{|Literal[&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}]
 1#array-like or PIL image#array-like|PIL image
-1#{&#39;equal&#39;, &#39;auto&#39;} or float, default: :rc:`image.aspect`#float|Literal[&#39;equal&#39;, &#39;auto&#39;]
-1#str, default: :rc:`image.interpolation`#str
-1#{&#39;data&#39;, &#39;rgba&#39;}, default: &#39;data&#39;#Literal[&#39;data&#39;, &#39;rgba&#39;]
-1#float or array-like, optional#float|array-like
-1#floats (left, right, bottom, top), optional#floats|tuple(left, right, bottom, top)
-1#float &gt; 0, default: 4.0#float &gt; 0
-1#bool, default: :rc:`image.resample`#bool
-1#{&#39;flat&#39;, &#39;nearest&#39;, &#39;auto&#39;}, default: :rc:`pcolor.shading`#Literal[&#39;flat&#39;, &#39;nearest&#39;, &#39;auto&#39;]
+1#{&#39;equal&#39;, &#39;auto&#39;} or float#float|Literal[&#39;equal&#39;, &#39;auto&#39;]
+1#{&#39;data&#39;, &#39;rgba&#39;}#Literal[&#39;data&#39;, &#39;rgba&#39;]
+1#floats (left, right, bottom, top)#floats|tuple(left, right, bottom, top)
+1#float &gt; 0#float &gt; 0
+1#{&#39;flat&#39;, &#39;nearest&#39;, &#39;auto&#39;}#Literal[&#39;flat&#39;, &#39;nearest&#39;, &#39;auto&#39;]
 1#`matplotlib.collections.Collection`#matplotlib.collections.Collection
-1#{&#39;flat&#39;, &#39;nearest&#39;, &#39;gouraud&#39;, &#39;auto&#39;}, optional#Literal[&#39;flat&#39;, &#39;nearest&#39;, &#39;gouraud&#39;, &#39;auto&#39;]
-1#bool, optional#bool
+1#{&#39;flat&#39;, &#39;nearest&#39;, &#39;gouraud&#39;, &#39;auto&#39;}#Literal[&#39;flat&#39;, &#39;nearest&#39;, &#39;gouraud&#39;, &#39;auto&#39;]
 1#`matplotlib.collections.QuadMesh`#matplotlib.collections.QuadMesh
 1#`.AxesImage` or `.PcolorImage` or `.QuadMesh`#AxesImage|PcolorImage|QuadMesh
 1#`.ContourSet` instance#ContourSet instance
 1#(n,) array or sequence of (n,) arrays#(n|) array|sequence of  arrays|tuple(n,)
-1#int or sequence or str, default: :rc:`hist.bins`#int|sequence|str
-1#tuple or None, default: None#tuple|None
-1#(n,) array-like or None, default: None#array-like|None|tuple(n,)
-1#bool or -1, default: False#bool|Literal[-1]
-1#array-like, scalar, or None, default: None#array-like|scalar|None
-1#{&#39;bar&#39;, &#39;barstacked&#39;, &#39;step&#39;, &#39;stepfilled&#39;}, default: &#39;bar&#39;#Literal[&#39;bar&#39;, &#39;barstacked&#39;, &#39;step&#39;, &#39;stepfilled&#39;]
-1#{&#39;left&#39;, &#39;mid&#39;, &#39;right&#39;}, default: &#39;mid&#39;#Literal[&#39;left&#39;, &#39;mid&#39;, &#39;right&#39;]
-1#float or None, default: None#float|None
-1#color or array-like of colors or None, default: None#color|array-like of colors|None
-1#str or None, default: None#str|None
+1#int or sequence or str#int|sequence|str
+1#tuple or None#tuple|None
+1#(n,) array-like or None#array-like|None|tuple(n,)
+1#bool or -1#bool|Literal[-1]
+1#array-like, scalar, or None#array-like|scalar|None
+1#{&#39;bar&#39;, &#39;barstacked&#39;, &#39;step&#39;, &#39;stepfilled&#39;}#Literal[&#39;bar&#39;, &#39;barstacked&#39;, &#39;step&#39;, &#39;stepfilled&#39;]
+1#{&#39;left&#39;, &#39;mid&#39;, &#39;right&#39;}#Literal[&#39;left&#39;, &#39;mid&#39;, &#39;right&#39;]
+1#color or array-like of colors or None#color|array-like of colors|None
 1#array or list of arrays#array|Sequence[arrays]
 1#array#array
 1#`.BarContainer` or list of a single `.Polygon` or list of such objects#BarContainer|list of a single .Polygon|list of such objects
-1#float, array-like or None, default: 0#float|array-like|None
+1#float, array-like or None#float|array-like|None
 1#`matplotlib.patches.StepPatch`#matplotlib.patches.StepPatch
 1#None or int or [int, int] or array-like or [array, array]#None|int|[int|int]|array-like|tuple(array, array)
-1#array-like shape(2, 2), optional#array-like shape|tuple(2, 2)
-1#array-like, shape (n, ), optional#array-like|shape|tuple(n, )
+1#array-like shape(2, 2)#array-like shape|tuple(2, 2)
 1#`~.matplotlib.collections.QuadMesh`#matplotlib.collections.QuadMesh
 1#{&#39;default&#39;, &#39;psd&#39;, &#39;magnitude&#39;, &#39;angle&#39;, &#39;phase&#39;}#Literal[&#39;default&#39;, &#39;psd&#39;, &#39;magnitude&#39;, &#39;angle&#39;, &#39;phase&#39;]
-1#int, default: 128#int
-1#`.Colormap`, default: :rc:`image.cmap`#Colormap
+1#`.Colormap`#Colormap
 1#*None* or (xmin, xmax)#*None*|tuple(xmin, xmax)
 1#`.AxesImage`#AxesImage
-1#float or &#39;present&#39;, default: 0#float|Literal[&#39;present&#39;]
-1#{&#39;equal&#39;, &#39;auto&#39;, None} or float, default: &#39;equal&#39;#float|Literal[&#39;equal&#39;, &#39;auto&#39;, None]
+1#float or &#39;present&#39;#float|Literal[&#39;present&#39;]
+1#{&#39;equal&#39;, &#39;auto&#39;, None} or float#float|Literal[&#39;equal&#39;, &#39;auto&#39;, None]
 1#`~matplotlib.image.AxesImage` or `.Line2D`#matplotlib.image.AxesImage|Line2D
-1#int, default: 100#int
-1#str, scalar or callable, optional#str|scalar|callable
+1#str, scalar or callable#str|scalar|callable
 1#tuple#tuple
 1#result#result
 1#`~matplotlib.figure.Figure`#matplotlib.figure.Figure
 1#[left, bottom, width, height]#tuple(left, bottom, width, height)
-1#`~.axes.Axes`#axes.Axes
 1#`.Figure`#Figure
 1#[left, bottom, width, height] or `~matplotlib.transforms.Bbox`#matplotlib.transforms.Bbox|tuple(left, bottom, width, height)
-1#{&#39;both&#39;, &#39;active&#39;, &#39;original&#39;}, default: &#39;both&#39;#Literal[&#39;both&#39;, &#39;active&#39;, &#39;original&#39;]
+1#{&#39;both&#39;, &#39;active&#39;, &#39;original&#39;}#Literal[&#39;both&#39;, &#39;active&#39;, &#39;original&#39;]
 1#Callable[[Axes, Renderer], Bbox]#Callable[|tuple(Axes, Renderer], Bbox)
 1#Patch#Patch
 1#Cycler#Cycler
 1#iterable#iterable
 1#{&#39;auto&#39;, &#39;equal&#39;} or float#float|Literal[&#39;auto&#39;, &#39;equal&#39;]
-1#None or {&#39;box&#39;, &#39;datalim&#39;}, optional#None|Literal[&#39;box&#39;, &#39;datalim&#39;]
-1#None or str or (float, float), optional#None|str|tuple(float, float)
+1#None or {&#39;box&#39;, &#39;datalim&#39;}#None|Literal[&#39;box&#39;, &#39;datalim&#39;]
+1#None or str or (float, float)#None|str|tuple(float, float)
 1#{&#39;box&#39;, &#39;datalim&#39;}#Literal[&#39;box&#39;, &#39;datalim&#39;]
 1#(float, float) or {&#39;C&#39;, &#39;SW&#39;, &#39;S&#39;, &#39;SE&#39;, &#39;E&#39;, &#39;NE&#39;, ...}#Literal[&#39;C&#39;, &#39;SW&#39;, &#39;S&#39;, &#39;SE&#39;, &#39;E&#39;, &#39;NE&#39;, ...]|tuple(float, float)
 1#bool or str#bool|str
-1#bool or None#bool|None
 1#`.RendererBase` subclass.#RendererBase subclass.
-1#{&#39;major&#39;, &#39;minor&#39;, &#39;both&#39;}, optional#Literal[&#39;major&#39;, &#39;minor&#39;, &#39;both&#39;]
-1#{&#39;both&#39;, &#39;x&#39;, &#39;y&#39;}, optional#Literal[&#39;both&#39;, &#39;x&#39;, &#39;y&#39;]
 1#`.Line2D` properties#Line2D properties
 1#{&#39;sci&#39;, &#39;scientific&#39;, &#39;plain&#39;}#Literal[&#39;sci&#39;, &#39;scientific&#39;, &#39;plain&#39;]
 1#pair of ints (m, n)#pair of ints|tuple(m, n)
 1#bool or float#bool|float
-1#{&#39;major&#39;, &#39;minor&#39;, &#39;both&#39;}, default: &#39;major&#39;#Literal[&#39;major&#39;, &#39;minor&#39;, &#39;both&#39;]
-1#{&#39;left&#39;, &#39;center&#39;, &#39;right&#39;}, default: :rc:`xaxis.labellocation`#Literal[&#39;left&#39;, &#39;center&#39;, &#39;right&#39;]
+1#{&#39;left&#39;, &#39;center&#39;, &#39;right&#39;}#Literal[&#39;left&#39;, &#39;center&#39;, &#39;right&#39;]
 1#The limit value after call to convert(), or None if limit is None.#The limit value after call to convert|None if limit is None.|tuple()
-1#{&#39;bottom&#39;, &#39;center&#39;, &#39;top&#39;}, default: :rc:`yaxis.labellocation`#Literal[&#39;bottom&#39;, &#39;center&#39;, &#39;top&#39;]
+1#{&#39;bottom&#39;, &#39;center&#39;, &#39;top&#39;}#Literal[&#39;bottom&#39;, &#39;center&#39;, &#39;top&#39;]
 1#4-tuple or 3 tuple#4-tuple|3 tuple
 1#`matplotlib.backend_bases.MouseEvent`#matplotlib.backend_bases.MouseEvent
 1#`.RendererBase` subclass#RendererBase subclass
@@ -1062,7 +979,7 @@ Returns
 1#tuple (*nrows*, *ncols*, *index*) or int#tuple|int|tuple(*nrows*, *ncols*, *index*)
 1#list of floats#Sequence[floats]
 1#2-tuple of func, or `Transform` with an inverse.#2-tuple of func|Transform with an inverse.
-</code></pre><p>Our crude normalizer hasn&rsquo;t done too badly; the bulk of these types make sense and many of them are usable as is. Others are clear enough that we could come up with an alternative to map them to.</p><p>There&rsquo;s definitely some near the end of the list where we are messing up; I&rsquo;ll look at those in more detail later and see how we can tweak normalization. A typical cause is when my current limitation of only being able to handle one literal or tuple in a type description is violated, either by multiple of these on a line or cases where they may be nested.</p><p>Nonetheless, you can see that there are only a little over 300 lines in this map file; considering how long it would take to hand-correct all the types individually and turn them into annotations, versus editing this file and automatically inserting them, this approach should pay off.</p><h2 id=next-time>Next Time</h2><p>That&rsquo;s enough for one day; next time I will look at improving the normalization, collecting a mapping for a whole package, and, finally, applying the types in the mapping file to our stubs.</p><hr><ul class=pager><li class=previous><a href=/post/creating-type-stubs-for-scientific-python-1/ data-toggle=tooltip data-placement=top title="Creating Type Stubs for Scientific Python (Part 1)">&larr;
+</code></pre><p>Our crude normalizer hasn&rsquo;t done too badly; the bulk of these types make sense and many of them are usable as is. Others are clear enough that we could easily come up with an alternative to map them to.</p><p>There&rsquo;s definitely some near the end of the list where we are messing up; I&rsquo;ll look at those in more detail later and see how we can tweak normalization. A typical cause is when my current limitation of only being able to handle one literal or tuple in a type description is violated, either by multiple of these on a line or cases where they may be nested.</p><p>Nonetheless, you can see that there are only a little over 200 lines in this map file; considering how long it would take to hand-correct all the types individually and turn them into annotations, versus editing this file and automatically inserting them, this approach should pay off.</p><h2 id=next-time>Next Time</h2><p>That&rsquo;s enough for one day; in subsequent posts I will look at:</p><ul><li>improving the normalization; there&rsquo;s some easy low-hanging fruit that can be addressed with little risk</li><li>collecting a mapping for a whole package at a time instead of a single module</li><li>maintaining persistent map files, a general and ones that are package-specific. For example, something like <code>float</code> would go in the general mapping file, while <code>list[Line2D]</code> would go in a <code>matplotlib</code> mapping file. Once we have these, we can check if a type already exists in the general mapping file, or the one for that package, and if so, we can omit it from the output. Then we only have to update what is left. This will make it easier to maintain stubs when new versions of a package are released.</li><li>applying the types in the various mapping files to our stubs.</li></ul><hr><ul class=pager><li class=previous><a href=/post/creating-type-stubs-for-scientific-python-1/ data-toggle=tooltip data-placement=top title="Creating Type Stubs for Scientific Python (Part 1)">&larr;
 Previous Post</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
 visible-lg-block
 sidebar-container

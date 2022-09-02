@@ -455,8 +455,8 @@ Returns
 </span></span><span style=display:flex><span>_restricted_val <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*){(.*)}(.*)$&#39;</span>)
 </span></span><span style=display:flex><span>_tuple1 <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*)\((.*)\)(.*)$&#39;</span>)  <span style=color:#6272a4># using ()</span>
 </span></span><span style=display:flex><span>_tuple2 <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(.*)\[(.*)\](.*)$&#39;</span>)  <span style=color:#6272a4># using []</span>
-</span></span><span style=display:flex><span>_sequence_of <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(List|list|Sequence|sequence|Array|array) of ([A-Za-z\._~`]+)$&#39;</span>)
-</span></span><span style=display:flex><span>_tuple_of <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(Tuple|tuple) of ([A-Za-z\._~`]+)$&#39;</span>)
+</span></span><span style=display:flex><span>_sequence_of <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(List|list|Sequence|sequence|Array|array) of ([A-Za-z0-9\._~`]+)$&#39;</span>)
+</span></span><span style=display:flex><span>_tuple_of <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^(Tuple|tuple) of ([A-Za-z0-9\._~`]+)$&#39;</span>)
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>normalize_type</span>(s: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>str</span>:
@@ -476,7 +476,7 @@ Returns
 </span></span><span style=display:flex><span>    t <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
 </span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> m:
 </span></span><span style=display:flex><span>        s <span style=color:#ff79c6>=</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>+</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>3</span>)
-</span></span><span style=display:flex><span>        t <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;tuple(&#39;</span> <span style=color:#ff79c6>+</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>2</span>) <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;)&#39;</span>
+</span></span><span style=display:flex><span>        t <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;tuple[&#39;</span> <span style=color:#ff79c6>+</span> m<span style=color:#ff79c6>.</span>group(<span style=color:#bd93f9>2</span>) <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;]&#39;</span>
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span>    <span style=color:#6272a4># Now look at list of types. First replace &#39; or &#39; with a comma.</span>
 </span></span><span style=display:flex><span>    <span style=color:#6272a4># This is a bit dangerous as commas may exist elsewhere but </span>
@@ -778,21 +778,21 @@ Returns
 14#1-D array#1-D array
 10#float or None#float|None
 10#1D or 2D array-like#1D|2D array-like
-9#(float, float)#tuple(float, float)
+9#(float, float)#tuple[float, float]
 9#bool or None#bool|None
 8#indexable object#indexable object
 7#color#color
 7#`~matplotlib.lines.Line2D`#matplotlib.lines.Line2D
 7#callable or ndarray#callable|ndarray
 7#{&#39;default&#39;, &#39;onesided&#39;, &#39;twosided&#39;}#Literal[&#39;default&#39;, &#39;onesided&#39;, &#39;twosided&#39;]
-6#list of `.Line2D`#list of .Line2D
+6#list of `.Line2D`#Sequence[Line2D]
 6#list#list
-6#array (length N) or scalar#array|scalar|tuple(length N)
+6#array (length N) or scalar#array|scalar|tuple[length N]
 5#{&#39;center&#39;, &#39;left&#39;, &#39;right&#39;}#Literal[&#39;center&#39;, &#39;left&#39;, &#39;right&#39;]
 5#str or `~matplotlib.colors.Colormap`#str|matplotlib.colors.Colormap
 5#`~matplotlib.colors.Normalize`#matplotlib.colors.Normalize
 5#1-D array or sequence#1-D array|sequence
-4#(M, N) array-like#array-like|tuple(M, N)
+4#(M, N) array-like#array-like|tuple[M, N]
 4#{&#39;none&#39;, &#39;mean&#39;, &#39;linear&#39;} or callable#callable|Literal[&#39;none&#39;, &#39;mean&#39;, &#39;linear&#39;]
 4#Transform#Transform
 4#{&#39;center&#39;, &#39;top&#39;, &#39;bottom&#39;, &#39;baseline&#39;, &#39;center_baseline&#39;}#Literal[&#39;center&#39;, &#39;top&#39;, &#39;bottom&#39;, &#39;baseline&#39;, &#39;center_baseline&#39;]
@@ -802,41 +802,41 @@ Returns
 3#callable#callable
 3#{&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}#Literal[&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;]
 3#`.BarContainer`#BarContainer
-3#float or array-like, shape (n, )#float|array-like|shape|tuple(n, )
+3#float or array-like, shape (n, )#float|array-like|shape|tuple[n, ]
 3#color or color sequence#color|color sequence
-3#array (length N)#array|tuple(length N)
-3#array of bool (length N)#Sequence[bool]|tuple(length N)
+3#array (length N)#array|tuple[length N]
+3#array of bool (length N)#Sequence[bool]|tuple[length N]
 3#`.PolyCollection`#PolyCollection
 3#2D array-like#2D array-like
 3#str or None#str|None
-3#array-like, shape (n, )#array-like|shape|tuple(n, )
+3#array-like, shape (n, )#array-like|shape|tuple[n, ]
 3#`~.axes.Axes`#axes.Axes
 3#{&#39;both&#39;, &#39;x&#39;, &#39;y&#39;}#Literal[&#39;both&#39;, &#39;x&#39;, &#39;y&#39;]
 2#`.Text`#Text
 2#list of str#Sequence[str]
-2#[x0, y0, width, height]#tuple(x0, y0, width, height)
+2#[x0, y0, width, height]#tuple[x0, y0, width, height]
 2#`.Transform`#Transform
 2#`.Axes`#Axes
 2#`.patches.Rectangle`#patches.Rectangle
 2#4-tuple of `.patches.ConnectionPatch`#4-tuple of .patches.ConnectionPatch
 2#2-tuple of func, or Transform with an inverse#2-tuple of func|Transform with an inverse
 2#axes._secondary_axes.SecondaryAxis#axes._secondary_axes.SecondaryAxis
-2#str or `.Artist` or `.Transform` or callable or (float, float)#str|Artist|Transform|callable|tuple(float, float)
+2#str or `.Artist` or `.Transform` or callable or (float, float)#str|Artist|Transform|callable|tuple[float, float]
 2#`~matplotlib.patches.Polygon`#matplotlib.patches.Polygon
 2#list of colors#Sequence[colors]
 2#{&#39;solid&#39;, &#39;dashed&#39;, &#39;dashdot&#39;, &#39;dotted&#39;}#Literal[&#39;solid&#39;, &#39;dashed&#39;, &#39;dashdot&#39;, &#39;dotted&#39;]
 2#`~matplotlib.collections.LineCollection`#matplotlib.collections.LineCollection
 2#array-like or scalar#array-like|scalar
 2#sequence#sequence
-2#array (length ``2*maxlags+1``)#array|tuple(length ``2*maxlags+1``)
-2#array  (length ``2*maxlags+1``)#array|tuple(length ``2*maxlags+1``)
+2#array (length ``2*maxlags+1``)#array|tuple[length ``2*maxlags+1``]
+2#array  (length ``2*maxlags+1``)#array|tuple[length ``2*maxlags+1``]
 2#`.LineCollection` or `.Line2D`#LineCollection|Line2D
 2#`.Line2D` or None#Line2D|None
 2#array-like of length n#array-like of length n
 2#{&#39;center&#39;, &#39;edge&#39;}#Literal[&#39;center&#39;, &#39;edge&#39;]
 2#1D array-like#1D array-like
-2#float or array-like, shape(N,) or shape(2, N)#float|array-like|shape(N|)|shape|tuple(2, N)
-2#int or (int, int)#int|tuple(int, int)
+2#float or array-like, shape(N,) or shape(2, N)#float|array-like|shape(N|)|shape|tuple[2, N]
+2#int or (int, int)#int|tuple[int, int]
 2#Array or a sequence of vectors.#Array|a sequence of vectors.
 2#list of dicts#Sequence[dicts]
 2#{&#39;linear&#39;, &#39;log&#39;}#Literal[&#39;linear&#39;, &#39;log&#39;]
@@ -874,17 +874,17 @@ Returns
 1#timezone string or `datetime.tzinfo`#timezone string|datetime.tzinfo
 1#{&#39;edge&#39;, &#39;center&#39;}#Literal[&#39;edge&#39;, &#39;center&#39;]
 1#list of `.Text`#Sequence[Text]
-1#sequence of tuples (*xmin*, *xwidth*)#Sequence[tuples]|tuple(*xmin*, *xwidth*)
-1#(*ymin*, *yheight*)#tuple(*ymin*, *yheight*)
+1#sequence of tuples (*xmin*, *xwidth*)#Sequence[tuples]|tuple[*xmin*, *xwidth*]
+1#(*ymin*, *yheight*)#tuple[*ymin*, *yheight*]
 1#`~.collections.BrokenBarHCollection`#collections.BrokenBarHCollection
 1#`.StemContainer`#StemContainer
 1#None or str or callable#None|str|callable
 1#`.ErrorbarContainer`#ErrorbarContainer
-1#float or (float, float)#float|tuple(float, float)
+1#float or (float, float)#float|tuple[float, float]
 1#color or sequence or sequence of color or None#color|sequence|Sequence[color]|None
 1#color or sequence of color or {&#39;face&#39;, &#39;none&#39;} or None#color|Sequence[color]|None|Literal[&#39;face&#39;, &#39;none&#39;]
 1#c#c
-1#array(N, 4) or None#array|None|tuple(N, 4)
+1#array(N, 4) or None#array|None|tuple[N, 4]
 1#edgecolors#edgecolors
 1#array-like or list of colors or color#array-like|Sequence[colors]|color
 1#`~.markers.MarkerStyle`#markers.MarkerStyle
@@ -905,13 +905,13 @@ Returns
 1#{&#39;tip&#39;, &#39;middle&#39;} or float#float|Literal[&#39;tip&#39;, &#39;middle&#39;]
 1#bool or array-like of bool#bool|array-like of bool
 1#`~matplotlib.quiver.Barbs`#matplotlib.quiver.Barbs
-1#sequence of x, y, [color]#Sequence[x]|y|tuple(color)
+1#sequence of x, y, [color]#Sequence[x]|y|tuple[color]
 1#list of `~matplotlib.patches.Polygon`#Sequence[matplotlib.patches.Polygon]
 1#{{&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}}#{|Literal[&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}]
 1#array-like or PIL image#array-like|PIL image
 1#{&#39;equal&#39;, &#39;auto&#39;} or float#float|Literal[&#39;equal&#39;, &#39;auto&#39;]
 1#{&#39;data&#39;, &#39;rgba&#39;}#Literal[&#39;data&#39;, &#39;rgba&#39;]
-1#floats (left, right, bottom, top)#floats|tuple(left, right, bottom, top)
+1#floats (left, right, bottom, top)#floats|tuple[left, right, bottom, top]
 1#float &gt; 0#float &gt; 0
 1#{&#39;flat&#39;, &#39;nearest&#39;, &#39;auto&#39;}#Literal[&#39;flat&#39;, &#39;nearest&#39;, &#39;auto&#39;]
 1#`matplotlib.collections.Collection`#matplotlib.collections.Collection
@@ -919,10 +919,10 @@ Returns
 1#`matplotlib.collections.QuadMesh`#matplotlib.collections.QuadMesh
 1#`.AxesImage` or `.PcolorImage` or `.QuadMesh`#AxesImage|PcolorImage|QuadMesh
 1#`.ContourSet` instance#ContourSet instance
-1#(n,) array or sequence of (n,) arrays#(n|) array|sequence of  arrays|tuple(n,)
+1#(n,) array or sequence of (n,) arrays#(n|) array|sequence of  arrays|tuple[n,]
 1#int or sequence or str#int|sequence|str
 1#tuple or None#tuple|None
-1#(n,) array-like or None#array-like|None|tuple(n,)
+1#(n,) array-like or None#array-like|None|tuple[n,]
 1#bool or -1#bool|Literal[-1]
 1#array-like, scalar, or None#array-like|scalar|None
 1#{&#39;bar&#39;, &#39;barstacked&#39;, &#39;step&#39;, &#39;stepfilled&#39;}#Literal[&#39;bar&#39;, &#39;barstacked&#39;, &#39;step&#39;, &#39;stepfilled&#39;]
@@ -933,12 +933,12 @@ Returns
 1#`.BarContainer` or list of a single `.Polygon` or list of such objects#BarContainer|list of a single .Polygon|list of such objects
 1#float, array-like or None#float|array-like|None
 1#`matplotlib.patches.StepPatch`#matplotlib.patches.StepPatch
-1#None or int or [int, int] or array-like or [array, array]#None|int|[int|int]|array-like|tuple(array, array)
-1#array-like shape(2, 2)#array-like shape|tuple(2, 2)
+1#None or int or [int, int] or array-like or [array, array]#None|int|[int|int]|array-like|tuple[array, array]
+1#array-like shape(2, 2)#array-like shape|tuple[2, 2]
 1#`~.matplotlib.collections.QuadMesh`#matplotlib.collections.QuadMesh
 1#{&#39;default&#39;, &#39;psd&#39;, &#39;magnitude&#39;, &#39;angle&#39;, &#39;phase&#39;}#Literal[&#39;default&#39;, &#39;psd&#39;, &#39;magnitude&#39;, &#39;angle&#39;, &#39;phase&#39;]
 1#`.Colormap`#Colormap
-1#*None* or (xmin, xmax)#*None*|tuple(xmin, xmax)
+1#*None* or (xmin, xmax)#*None*|tuple[xmin, xmax]
 1#`.AxesImage`#AxesImage
 1#float or &#39;present&#39;#float|Literal[&#39;present&#39;]
 1#{&#39;equal&#39;, &#39;auto&#39;, None} or float#float|Literal[&#39;equal&#39;, &#39;auto&#39;, None]
@@ -947,27 +947,27 @@ Returns
 1#tuple#tuple
 1#result#result
 1#`~matplotlib.figure.Figure`#matplotlib.figure.Figure
-1#[left, bottom, width, height]#tuple(left, bottom, width, height)
+1#[left, bottom, width, height]#tuple[left, bottom, width, height]
 1#`.Figure`#Figure
-1#[left, bottom, width, height] or `~matplotlib.transforms.Bbox`#matplotlib.transforms.Bbox|tuple(left, bottom, width, height)
+1#[left, bottom, width, height] or `~matplotlib.transforms.Bbox`#matplotlib.transforms.Bbox|tuple[left, bottom, width, height]
 1#{&#39;both&#39;, &#39;active&#39;, &#39;original&#39;}#Literal[&#39;both&#39;, &#39;active&#39;, &#39;original&#39;]
-1#Callable[[Axes, Renderer], Bbox]#Callable[|tuple(Axes, Renderer], Bbox)
+1#Callable[[Axes, Renderer], Bbox]#Callable[|tuple[Axes, Renderer], Bbox]
 1#Patch#Patch
 1#Cycler#Cycler
 1#iterable#iterable
 1#{&#39;auto&#39;, &#39;equal&#39;} or float#float|Literal[&#39;auto&#39;, &#39;equal&#39;]
 1#None or {&#39;box&#39;, &#39;datalim&#39;}#None|Literal[&#39;box&#39;, &#39;datalim&#39;]
-1#None or str or (float, float)#None|str|tuple(float, float)
+1#None or str or (float, float)#None|str|tuple[float, float]
 1#{&#39;box&#39;, &#39;datalim&#39;}#Literal[&#39;box&#39;, &#39;datalim&#39;]
-1#(float, float) or {&#39;C&#39;, &#39;SW&#39;, &#39;S&#39;, &#39;SE&#39;, &#39;E&#39;, &#39;NE&#39;, ...}#Literal[&#39;C&#39;, &#39;SW&#39;, &#39;S&#39;, &#39;SE&#39;, &#39;E&#39;, &#39;NE&#39;, ...]|tuple(float, float)
+1#(float, float) or {&#39;C&#39;, &#39;SW&#39;, &#39;S&#39;, &#39;SE&#39;, &#39;E&#39;, &#39;NE&#39;, ...}#Literal[&#39;C&#39;, &#39;SW&#39;, &#39;S&#39;, &#39;SE&#39;, &#39;E&#39;, &#39;NE&#39;, ...]|tuple[float, float]
 1#bool or str#bool|str
 1#`.RendererBase` subclass.#RendererBase subclass.
 1#`.Line2D` properties#Line2D properties
 1#{&#39;sci&#39;, &#39;scientific&#39;, &#39;plain&#39;}#Literal[&#39;sci&#39;, &#39;scientific&#39;, &#39;plain&#39;]
-1#pair of ints (m, n)#pair of ints|tuple(m, n)
+1#pair of ints (m, n)#pair of ints|tuple[m, n]
 1#bool or float#bool|float
 1#{&#39;left&#39;, &#39;center&#39;, &#39;right&#39;}#Literal[&#39;left&#39;, &#39;center&#39;, &#39;right&#39;]
-1#The limit value after call to convert(), or None if limit is None.#The limit value after call to convert|None if limit is None.|tuple()
+1#The limit value after call to convert(), or None if limit is None.#The limit value after call to convert|None if limit is None.|tuple[]
 1#{&#39;bottom&#39;, &#39;center&#39;, &#39;top&#39;}#Literal[&#39;bottom&#39;, &#39;center&#39;, &#39;top&#39;]
 1#4-tuple or 3 tuple#4-tuple|3 tuple
 1#`matplotlib.backend_bases.MouseEvent`#matplotlib.backend_bases.MouseEvent
@@ -976,7 +976,7 @@ Returns
 1#default: False#default: False
 1#`.BboxBase`#BboxBase
 1#`matplotlib.figure.Figure`#matplotlib.figure.Figure
-1#tuple (*nrows*, *ncols*, *index*) or int#tuple|int|tuple(*nrows*, *ncols*, *index*)
+1#tuple (*nrows*, *ncols*, *index*) or int#tuple|int|tuple[*nrows*, *ncols*, *index*]
 1#list of floats#Sequence[floats]
 1#2-tuple of func, or `Transform` with an inverse.#2-tuple of func|Transform with an inverse.
 </code></pre><p>Our crude normalizer hasn&rsquo;t done too badly; the bulk of these types make sense and many of them are usable as is. Others are clear enough that we could easily come up with an alternative to map them to.</p><p>There&rsquo;s definitely some near the end of the list where we are messing up; I&rsquo;ll look at those in more detail later and see how we can tweak normalization. A typical cause is when my current limitation of only being able to handle one literal or tuple in a type description is violated, either by multiple of these on a line or cases where they may be nested.</p><p>Nonetheless, you can see that there are only a little over 200 lines in this map file; considering how long it would take to hand-correct all the types individually and turn them into annotations, versus editing this file and automatically inserting them, this approach should pay off.</p><h2 id=next-time>Next Time</h2><p>That&rsquo;s enough for one day; in subsequent posts I will look at:</p><ul><li>improving the normalization; there&rsquo;s some easy low-hanging fruit that can be addressed with little risk</li><li>collecting a mapping for a whole package at a time instead of a single module</li><li>maintaining persistent map files, a general and ones that are package-specific. For example, something like <code>float</code> would go in the general mapping file, while <code>list[Line2D]</code> would go in a <code>matplotlib</code> mapping file. Once we have these, we can check if a type already exists in the general mapping file, or the one for that package, and if so, we can omit it from the output. Then we only have to update what is left. This will make it easier to maintain stubs when new versions of a package are released.</li><li>applying the types in the various mapping files to our stubs.</li></ul><hr><ul class=pager><li class=previous><a href=/post/creating-type-stubs-for-scientific-python-1/ data-toggle=tooltip data-placement=top title="Creating Type Stubs for Scientific Python (Part 1)">&larr;

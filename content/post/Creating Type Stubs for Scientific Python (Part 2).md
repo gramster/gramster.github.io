@@ -527,8 +527,8 @@ import re
 _restricted_val = re.compile(r'^(.*){(.*)}(.*)$')
 _tuple1 = re.compile(r'^(.*)\((.*)\)(.*)$')  # using ()
 _tuple2 = re.compile(r'^(.*)\[(.*)\](.*)$')  # using []
-_sequence_of = re.compile(r'^(List|list|Sequence|sequence|Array|array) of ([A-Za-z\._~`]+)$')
-_tuple_of = re.compile(r'^(Tuple|tuple) of ([A-Za-z\._~`]+)$')
+_sequence_of = re.compile(r'^(List|list|Sequence|sequence|Array|array) of ([A-Za-z0-9\._~`]+)$')
+_tuple_of = re.compile(r'^(Tuple|tuple) of ([A-Za-z0-9\._~`]+)$')
 
 
 def normalize_type(s: str) -> str:
@@ -548,7 +548,7 @@ def normalize_type(s: str) -> str:
     t = None
     if m:
         s = m.group(1) + m.group(3)
-        t = 'tuple(' + m.group(2) + ')'
+        t = 'tuple[' + m.group(2) + ']'
 
     # Now look at list of types. First replace ' or ' with a comma.
     # This is a bit dangerous as commas may exist elsewhere but 
@@ -887,21 +887,21 @@ We can now run this on a module. Below is the output from analyzing `matplotlib.
 14#1-D array#1-D array
 10#float or None#float|None
 10#1D or 2D array-like#1D|2D array-like
-9#(float, float)#tuple(float, float)
+9#(float, float)#tuple[float, float]
 9#bool or None#bool|None
 8#indexable object#indexable object
 7#color#color
 7#`~matplotlib.lines.Line2D`#matplotlib.lines.Line2D
 7#callable or ndarray#callable|ndarray
 7#{'default', 'onesided', 'twosided'}#Literal['default', 'onesided', 'twosided']
-6#list of `.Line2D`#list of .Line2D
+6#list of `.Line2D`#Sequence[Line2D]
 6#list#list
-6#array (length N) or scalar#array|scalar|tuple(length N)
+6#array (length N) or scalar#array|scalar|tuple[length N]
 5#{'center', 'left', 'right'}#Literal['center', 'left', 'right']
 5#str or `~matplotlib.colors.Colormap`#str|matplotlib.colors.Colormap
 5#`~matplotlib.colors.Normalize`#matplotlib.colors.Normalize
 5#1-D array or sequence#1-D array|sequence
-4#(M, N) array-like#array-like|tuple(M, N)
+4#(M, N) array-like#array-like|tuple[M, N]
 4#{'none', 'mean', 'linear'} or callable#callable|Literal['none', 'mean', 'linear']
 4#Transform#Transform
 4#{'center', 'top', 'bottom', 'baseline', 'center_baseline'}#Literal['center', 'top', 'bottom', 'baseline', 'center_baseline']
@@ -911,41 +911,41 @@ We can now run this on a module. Below is the output from analyzing `matplotlib.
 3#callable#callable
 3#{'pre', 'post', 'mid'}#Literal['pre', 'post', 'mid']
 3#`.BarContainer`#BarContainer
-3#float or array-like, shape (n, )#float|array-like|shape|tuple(n, )
+3#float or array-like, shape (n, )#float|array-like|shape|tuple[n, ]
 3#color or color sequence#color|color sequence
-3#array (length N)#array|tuple(length N)
-3#array of bool (length N)#Sequence[bool]|tuple(length N)
+3#array (length N)#array|tuple[length N]
+3#array of bool (length N)#Sequence[bool]|tuple[length N]
 3#`.PolyCollection`#PolyCollection
 3#2D array-like#2D array-like
 3#str or None#str|None
-3#array-like, shape (n, )#array-like|shape|tuple(n, )
+3#array-like, shape (n, )#array-like|shape|tuple[n, ]
 3#`~.axes.Axes`#axes.Axes
 3#{'both', 'x', 'y'}#Literal['both', 'x', 'y']
 2#`.Text`#Text
 2#list of str#Sequence[str]
-2#[x0, y0, width, height]#tuple(x0, y0, width, height)
+2#[x0, y0, width, height]#tuple[x0, y0, width, height]
 2#`.Transform`#Transform
 2#`.Axes`#Axes
 2#`.patches.Rectangle`#patches.Rectangle
 2#4-tuple of `.patches.ConnectionPatch`#4-tuple of .patches.ConnectionPatch
 2#2-tuple of func, or Transform with an inverse#2-tuple of func|Transform with an inverse
 2#axes._secondary_axes.SecondaryAxis#axes._secondary_axes.SecondaryAxis
-2#str or `.Artist` or `.Transform` or callable or (float, float)#str|Artist|Transform|callable|tuple(float, float)
+2#str or `.Artist` or `.Transform` or callable or (float, float)#str|Artist|Transform|callable|tuple[float, float]
 2#`~matplotlib.patches.Polygon`#matplotlib.patches.Polygon
 2#list of colors#Sequence[colors]
 2#{'solid', 'dashed', 'dashdot', 'dotted'}#Literal['solid', 'dashed', 'dashdot', 'dotted']
 2#`~matplotlib.collections.LineCollection`#matplotlib.collections.LineCollection
 2#array-like or scalar#array-like|scalar
 2#sequence#sequence
-2#array (length ``2*maxlags+1``)#array|tuple(length ``2*maxlags+1``)
-2#array  (length ``2*maxlags+1``)#array|tuple(length ``2*maxlags+1``)
+2#array (length ``2*maxlags+1``)#array|tuple[length ``2*maxlags+1``]
+2#array  (length ``2*maxlags+1``)#array|tuple[length ``2*maxlags+1``]
 2#`.LineCollection` or `.Line2D`#LineCollection|Line2D
 2#`.Line2D` or None#Line2D|None
 2#array-like of length n#array-like of length n
 2#{'center', 'edge'}#Literal['center', 'edge']
 2#1D array-like#1D array-like
-2#float or array-like, shape(N,) or shape(2, N)#float|array-like|shape(N|)|shape|tuple(2, N)
-2#int or (int, int)#int|tuple(int, int)
+2#float or array-like, shape(N,) or shape(2, N)#float|array-like|shape(N|)|shape|tuple[2, N]
+2#int or (int, int)#int|tuple[int, int]
 2#Array or a sequence of vectors.#Array|a sequence of vectors.
 2#list of dicts#Sequence[dicts]
 2#{'linear', 'log'}#Literal['linear', 'log']
@@ -983,17 +983,17 @@ We can now run this on a module. Below is the output from analyzing `matplotlib.
 1#timezone string or `datetime.tzinfo`#timezone string|datetime.tzinfo
 1#{'edge', 'center'}#Literal['edge', 'center']
 1#list of `.Text`#Sequence[Text]
-1#sequence of tuples (*xmin*, *xwidth*)#Sequence[tuples]|tuple(*xmin*, *xwidth*)
-1#(*ymin*, *yheight*)#tuple(*ymin*, *yheight*)
+1#sequence of tuples (*xmin*, *xwidth*)#Sequence[tuples]|tuple[*xmin*, *xwidth*]
+1#(*ymin*, *yheight*)#tuple[*ymin*, *yheight*]
 1#`~.collections.BrokenBarHCollection`#collections.BrokenBarHCollection
 1#`.StemContainer`#StemContainer
 1#None or str or callable#None|str|callable
 1#`.ErrorbarContainer`#ErrorbarContainer
-1#float or (float, float)#float|tuple(float, float)
+1#float or (float, float)#float|tuple[float, float]
 1#color or sequence or sequence of color or None#color|sequence|Sequence[color]|None
 1#color or sequence of color or {'face', 'none'} or None#color|Sequence[color]|None|Literal['face', 'none']
 1#c#c
-1#array(N, 4) or None#array|None|tuple(N, 4)
+1#array(N, 4) or None#array|None|tuple[N, 4]
 1#edgecolors#edgecolors
 1#array-like or list of colors or color#array-like|Sequence[colors]|color
 1#`~.markers.MarkerStyle`#markers.MarkerStyle
@@ -1014,13 +1014,13 @@ We can now run this on a module. Below is the output from analyzing `matplotlib.
 1#{'tip', 'middle'} or float#float|Literal['tip', 'middle']
 1#bool or array-like of bool#bool|array-like of bool
 1#`~matplotlib.quiver.Barbs`#matplotlib.quiver.Barbs
-1#sequence of x, y, [color]#Sequence[x]|y|tuple(color)
+1#sequence of x, y, [color]#Sequence[x]|y|tuple[color]
 1#list of `~matplotlib.patches.Polygon`#Sequence[matplotlib.patches.Polygon]
 1#{{'pre', 'post', 'mid'}}#{|Literal['pre', 'post', 'mid'}]
 1#array-like or PIL image#array-like|PIL image
 1#{'equal', 'auto'} or float#float|Literal['equal', 'auto']
 1#{'data', 'rgba'}#Literal['data', 'rgba']
-1#floats (left, right, bottom, top)#floats|tuple(left, right, bottom, top)
+1#floats (left, right, bottom, top)#floats|tuple[left, right, bottom, top]
 1#float > 0#float > 0
 1#{'flat', 'nearest', 'auto'}#Literal['flat', 'nearest', 'auto']
 1#`matplotlib.collections.Collection`#matplotlib.collections.Collection
@@ -1028,10 +1028,10 @@ We can now run this on a module. Below is the output from analyzing `matplotlib.
 1#`matplotlib.collections.QuadMesh`#matplotlib.collections.QuadMesh
 1#`.AxesImage` or `.PcolorImage` or `.QuadMesh`#AxesImage|PcolorImage|QuadMesh
 1#`.ContourSet` instance#ContourSet instance
-1#(n,) array or sequence of (n,) arrays#(n|) array|sequence of  arrays|tuple(n,)
+1#(n,) array or sequence of (n,) arrays#(n|) array|sequence of  arrays|tuple[n,]
 1#int or sequence or str#int|sequence|str
 1#tuple or None#tuple|None
-1#(n,) array-like or None#array-like|None|tuple(n,)
+1#(n,) array-like or None#array-like|None|tuple[n,]
 1#bool or -1#bool|Literal[-1]
 1#array-like, scalar, or None#array-like|scalar|None
 1#{'bar', 'barstacked', 'step', 'stepfilled'}#Literal['bar', 'barstacked', 'step', 'stepfilled']
@@ -1042,12 +1042,12 @@ We can now run this on a module. Below is the output from analyzing `matplotlib.
 1#`.BarContainer` or list of a single `.Polygon` or list of such objects#BarContainer|list of a single .Polygon|list of such objects
 1#float, array-like or None#float|array-like|None
 1#`matplotlib.patches.StepPatch`#matplotlib.patches.StepPatch
-1#None or int or [int, int] or array-like or [array, array]#None|int|[int|int]|array-like|tuple(array, array)
-1#array-like shape(2, 2)#array-like shape|tuple(2, 2)
+1#None or int or [int, int] or array-like or [array, array]#None|int|[int|int]|array-like|tuple[array, array]
+1#array-like shape(2, 2)#array-like shape|tuple[2, 2]
 1#`~.matplotlib.collections.QuadMesh`#matplotlib.collections.QuadMesh
 1#{'default', 'psd', 'magnitude', 'angle', 'phase'}#Literal['default', 'psd', 'magnitude', 'angle', 'phase']
 1#`.Colormap`#Colormap
-1#*None* or (xmin, xmax)#*None*|tuple(xmin, xmax)
+1#*None* or (xmin, xmax)#*None*|tuple[xmin, xmax]
 1#`.AxesImage`#AxesImage
 1#float or 'present'#float|Literal['present']
 1#{'equal', 'auto', None} or float#float|Literal['equal', 'auto', None]
@@ -1056,27 +1056,27 @@ We can now run this on a module. Below is the output from analyzing `matplotlib.
 1#tuple#tuple
 1#result#result
 1#`~matplotlib.figure.Figure`#matplotlib.figure.Figure
-1#[left, bottom, width, height]#tuple(left, bottom, width, height)
+1#[left, bottom, width, height]#tuple[left, bottom, width, height]
 1#`.Figure`#Figure
-1#[left, bottom, width, height] or `~matplotlib.transforms.Bbox`#matplotlib.transforms.Bbox|tuple(left, bottom, width, height)
+1#[left, bottom, width, height] or `~matplotlib.transforms.Bbox`#matplotlib.transforms.Bbox|tuple[left, bottom, width, height]
 1#{'both', 'active', 'original'}#Literal['both', 'active', 'original']
-1#Callable[[Axes, Renderer], Bbox]#Callable[|tuple(Axes, Renderer], Bbox)
+1#Callable[[Axes, Renderer], Bbox]#Callable[|tuple[Axes, Renderer], Bbox]
 1#Patch#Patch
 1#Cycler#Cycler
 1#iterable#iterable
 1#{'auto', 'equal'} or float#float|Literal['auto', 'equal']
 1#None or {'box', 'datalim'}#None|Literal['box', 'datalim']
-1#None or str or (float, float)#None|str|tuple(float, float)
+1#None or str or (float, float)#None|str|tuple[float, float]
 1#{'box', 'datalim'}#Literal['box', 'datalim']
-1#(float, float) or {'C', 'SW', 'S', 'SE', 'E', 'NE', ...}#Literal['C', 'SW', 'S', 'SE', 'E', 'NE', ...]|tuple(float, float)
+1#(float, float) or {'C', 'SW', 'S', 'SE', 'E', 'NE', ...}#Literal['C', 'SW', 'S', 'SE', 'E', 'NE', ...]|tuple[float, float]
 1#bool or str#bool|str
 1#`.RendererBase` subclass.#RendererBase subclass.
 1#`.Line2D` properties#Line2D properties
 1#{'sci', 'scientific', 'plain'}#Literal['sci', 'scientific', 'plain']
-1#pair of ints (m, n)#pair of ints|tuple(m, n)
+1#pair of ints (m, n)#pair of ints|tuple[m, n]
 1#bool or float#bool|float
 1#{'left', 'center', 'right'}#Literal['left', 'center', 'right']
-1#The limit value after call to convert(), or None if limit is None.#The limit value after call to convert|None if limit is None.|tuple()
+1#The limit value after call to convert(), or None if limit is None.#The limit value after call to convert|None if limit is None.|tuple[]
 1#{'bottom', 'center', 'top'}#Literal['bottom', 'center', 'top']
 1#4-tuple or 3 tuple#4-tuple|3 tuple
 1#`matplotlib.backend_bases.MouseEvent`#matplotlib.backend_bases.MouseEvent
@@ -1085,7 +1085,7 @@ We can now run this on a module. Below is the output from analyzing `matplotlib.
 1#default: False#default: False
 1#`.BboxBase`#BboxBase
 1#`matplotlib.figure.Figure`#matplotlib.figure.Figure
-1#tuple (*nrows*, *ncols*, *index*) or int#tuple|int|tuple(*nrows*, *ncols*, *index*)
+1#tuple (*nrows*, *ncols*, *index*) or int#tuple|int|tuple[*nrows*, *ncols*, *index*]
 1#list of floats#Sequence[floats]
 1#2-tuple of func, or `Transform` with an inverse.#2-tuple of func|Transform with an inverse.
 ```

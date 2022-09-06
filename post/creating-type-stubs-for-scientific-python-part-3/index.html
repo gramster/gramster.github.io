@@ -1,0 +1,909 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="https://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="https://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="Creating Type Stubs for Scientific Python (Part 3)"><meta property="og:title" content="Creating Type Stubs for Scientific Python (Part 3)"><meta property="twitter:title" content="Creating Type Stubs for Scientific Python (Part 3)"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>Creating Type Stubs for Scientific Python (Part 3)-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/creating-type-stubs-for-scientific-python-part-3/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>Creating Type Stubs for Scientific Python (Part 3)</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Tuesday, September 6, 2022</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><h2 id=generating-output-for-a-whole-package>Generating Output for a Whole Package</h2><p>The approach we took in the last post to finding the files for a package is not strictly correct. We imported the package, then looked at the file associated with the package, and if it was an <code>__init__.py</code> file, added all the other <code>.py</code> files in the same directory. This works in many cases but not all. It specifically did work for <code>matplotlib.axes</code> which is the example I have used until now. I suspect there is probably an elegant solution to finding out when that is appropriate and when it is not, but I don&rsquo;t know what it is. Instead, I am going to treat each <code>.py</code> file as an independent module. The old <code>get_module_and_files</code> function gets replaced by a function <code>get_module_and_children</code>, which returns just a single file, but if that file is an <code>__init__.py</code>, also returns all other <code>.py</code> files and directories in the same folder in a list of submodules.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>get_module_and_children</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[ModuleType<span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>, <span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>list</span>[<span style=color:#8be9fd;font-style:italic>str</span>]]:
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>        mod <span style=color:#ff79c6>=</span> importlib<span style=color:#ff79c6>.</span>import_module(m)
+</span></span><span style=display:flex><span>        file <span style=color:#ff79c6>=</span> inspect<span style=color:#ff79c6>.</span>getfile(mod)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>except</span> Exception <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;Could not import module </span><span style=color:#f1fa8c>{</span>m<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>: </span><span style=color:#f1fa8c>{</span>e<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>None</span>, <span style=color:#ff79c6>None</span>, []
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    submodules <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> file<span style=color:#ff79c6>.</span>endswith(<span style=color:#f1fa8c>&#34;/__init__.py&#34;</span>):
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Get the parent directory and all the files in that directory</span>
+</span></span><span style=display:flex><span>        folder <span style=color:#ff79c6>=</span> file[:<span style=color:#ff79c6>-</span><span style=color:#bd93f9>12</span>]
+</span></span><span style=display:flex><span>        files <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> f <span style=color:#ff79c6>in</span> glob<span style=color:#ff79c6>.</span>glob(folder <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#34;/*&#34;</span>):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> f <span style=color:#ff79c6>==</span> file:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> f<span style=color:#ff79c6>.</span>endswith(<span style=color:#f1fa8c>&#39;.py&#39;</span>):
+</span></span><span style=display:flex><span>                submodules<span style=color:#ff79c6>.</span>append(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>m<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>.</span><span style=color:#f1fa8c>{</span>f[f<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#34;/&#34;</span>)<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>:<span style=color:#ff79c6>-</span><span style=color:#bd93f9>3</span>]<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>elif</span> os<span style=color:#ff79c6>.</span>path<span style=color:#ff79c6>.</span>isdir(f) <span style=color:#ff79c6>and</span> <span style=color:#ff79c6>not</span> f<span style=color:#ff79c6>.</span>endswith(<span style=color:#f1fa8c>&#39;__pycache__&#39;</span>):
+</span></span><span style=display:flex><span>                submodules<span style=color:#ff79c6>.</span>append(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>m<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>.</span><span style=color:#f1fa8c>{</span>f[f<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#34;/&#34;</span>)<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>:]<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> mod, file, submodules
+</span></span></code></pre></div><p>We can then add a flag to the <code>process_module</code> function to control whether we want to include submodules:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>process_module</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>, 
+</span></span><span style=display:flex><span>        state: <span style=color:#8be9fd;font-style:italic>object</span>,
+</span></span><span style=display:flex><span>        processor: Callable, 
+</span></span><span style=display:flex><span>        targeter: Callable,
+</span></span><span style=display:flex><span>        post_processor: Callable<span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>, 
+</span></span><span style=display:flex><span>        include_submodules: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>True</span>,
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>**</span>kwargs):
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    modules <span style=color:#ff79c6>=</span> [m]
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> modules:
+</span></span><span style=display:flex><span>        mod, file, submodules <span style=color:#ff79c6>=</span> get_module_and_children(modules<span style=color:#ff79c6>.</span>pop())
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> include_submodules:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> mod:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>            modules<span style=color:#ff79c6>.</span>extend(submodules)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> mod:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        result <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>with</span> <span style=color:#8be9fd;font-style:italic>open</span>(file) <span style=color:#ff79c6>as</span> f:
+</span></span><span style=display:flex><span>                source <span style=color:#ff79c6>=</span> f<span style=color:#ff79c6>.</span>read()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>except</span> Exception <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>            <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;Failed to read </span><span style=color:#f1fa8c>{</span>file<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>: </span><span style=color:#f1fa8c>{</span>e<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#34;</span>)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        result <span style=color:#ff79c6>=</span> processor(mod, file, source, state, <span style=color:#ff79c6>**</span>kwargs)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> post_processor <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> result <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;Failed to process </span><span style=color:#f1fa8c>{</span>file<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#34;</span>)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                target <span style=color:#ff79c6>=</span> targeter(file)
+</span></span><span style=display:flex><span>                folder <span style=color:#ff79c6>=</span> target[: target<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#34;/&#34;</span>)]
+</span></span><span style=display:flex><span>                os<span style=color:#ff79c6>.</span>makedirs(folder, exist_ok<span style=color:#ff79c6>=</span><span style=color:#ff79c6>True</span>)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>with</span> <span style=color:#8be9fd;font-style:italic>open</span>(target, <span style=color:#f1fa8c>&#34;w&#34;</span>) <span style=color:#ff79c6>as</span> f:
+</span></span><span style=display:flex><span>                    f<span style=color:#ff79c6>.</span>write(result)
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;Processed file </span><span style=color:#f1fa8c>{</span>file<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> post_processor:
+</span></span><span style=display:flex><span>        result <span style=color:#ff79c6>=</span> post_processor(m, state)
+</span></span><span style=display:flex><span>        target <span style=color:#ff79c6>=</span> targeter(m)
+</span></span><span style=display:flex><span>        folder <span style=color:#ff79c6>=</span> target[: target<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#34;/&#34;</span>)]
+</span></span><span style=display:flex><span>        os<span style=color:#ff79c6>.</span>makedirs(folder, exist_ok<span style=color:#ff79c6>=</span><span style=color:#ff79c6>True</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>with</span> <span style=color:#8be9fd;font-style:italic>open</span>(target, <span style=color:#f1fa8c>&#34;w&#34;</span>) <span style=color:#ff79c6>as</span> f:
+</span></span><span style=display:flex><span>            f<span style=color:#ff79c6>.</span>write(result)
+</span></span></code></pre></div><p>Now, if we call <code>process_module('matplotlib')</code>, we process all modules in the package.</p><h2 id=the-type-translation-function>The Type Translation Function</h2><p>We&rsquo;ve assembled a fair number of components by now, but shouldn&rsquo;t lose sight of the goal while in the weeds. As we generate the stubs, we want a function that essentially takes these inputs:</p><ul><li>the type from the docstring</li><li>whether this is a parameter or a return value/assignment</li><li>the default value (if a parameter or assignment)</li></ul><p>and returns the outputs:</p><ul><li>the type annotation</li><li>the (modified) default value (which in most cases should be the same as the input, or &lsquo;&mldr;&rsquo;)</li><li>any imports that are needed to support the type annotation.</li></ul><p>Later on we&rsquo;ll use the import info together with the file path to determine what import statements we want to add (favoring relative imports for imports from the same package).</p><p>The reason for identifying if this is a parameter versus non-parameter is that we want to be less restrictive with parameters. Let&rsquo;s say a docstring says <code>list of int</code>: for a parameter we may want to annotate with <code>Sequence[int]</code>, because we just need something that is &ldquo;list-like&rdquo;, while for the return type it may be reasonable to return <code>list[int]</code>, as it is a specific case.</p><p>For simplicity, we can split this desired function into separate cases for assignments, parameters and return values, but they will likely share much of their logic.</p><h3 id=collecting-classes-and-import-information>Collecting Classes and Import Information</h3><p>As we analyze types, it is useful to collect what classes are defined in the module. This will also help later to make sure we have the necessary import statements in the stubs. We can add a second dictionary to the state object in the analyzer to keep track of this. We will key it on class names, with the values being the file paths:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>    <span style=color:#ff79c6>def</span> __init__(self, mod: ModuleType, fname: <span style=color:#8be9fd;font-style:italic>str</span>, counter: Counter, context: <span style=color:#8be9fd;font-style:italic>dict</span>,
+</span></span><span style=display:flex><span>            imports: <span style=color:#8be9fd;font-style:italic>dict</span>):
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>__init__()
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_mod <span style=color:#ff79c6>=</span> mod
+</span></span><span style=display:flex><span>        i <span style=color:#ff79c6>=</span> fname<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#39;site-packages&#39;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> i <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span>:
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># Strip off the irrelevant part of the path</span>
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_fname <span style=color:#ff79c6>=</span> fname[i<span style=color:#ff79c6>+</span><span style=color:#bd93f9>14</span>:]
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_fname <span style=color:#ff79c6>=</span> fname
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_classname <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_parser <span style=color:#ff79c6>=</span> NumpyDocstringParser()
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_counter <span style=color:#ff79c6>=</span> counter
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_context <span style=color:#ff79c6>=</span> context
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_imports <span style=color:#ff79c6>=</span> imports
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>...</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>visit_ClassDef</span>(self, node: cst<span style=color:#ff79c6>.</span>ClassDef) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> self<span style=color:#ff79c6>.</span>at_top_level():
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_classname <span style=color:#ff79c6>=</span> node<span style=color:#ff79c6>.</span>name<span style=color:#ff79c6>.</span>value
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_imports[self<span style=color:#ff79c6>.</span>_classname] <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_fname
+</span></span><span style=display:flex><span>            obj <span style=color:#ff79c6>=</span> AnalyzingTransformer<span style=color:#ff79c6>.</span>get_top_level_obj(self<span style=color:#ff79c6>.</span>_mod, self<span style=color:#ff79c6>.</span>_fname, node<span style=color:#ff79c6>.</span>name<span style=color:#ff79c6>.</span>value)
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_analyze_obj(obj, self<span style=color:#ff79c6>.</span>_classname)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>visit_ClassDef(node)
+</span></span></code></pre></div><h3 id=discarding-trivial-analysis-lines>Discarding &lsquo;Trivial&rsquo; Analysis Lines</h3><p>As we generate the map files, there are some types that are obviously correct and need no additional processing or extra imports. Some of these are built-in types, like <code>float</code>. Another case is a restricted value that is just a set of possible string values (these are common in matplotlib at least). We can drop these when generating the map file.</p><p>I would have liked to be able to split up the types on " or " and then deal with each alternative as a separate entity. Unfortunately here is where we run into issues with poor specification. It&rsquo;s possible to see types like <code>list of bool or float</code>. This is ambiguous, but it probably is meant to imply <code>list of bool</code> or <code>list of float</code>, as opposed to <code>list of bool</code> or <code>float</code>. If we simply split at the word <code>or</code> we would get the second interpretation, so it is not safe to do this.</p><p>Having said that, it is probably okay to do this when the alternatives are single words, such as in <code>bool or float</code>, or if they correspond to classes in the package that we have in the map file.</p><p>There are also many references to &lsquo;array-like&rsquo; in matplotlib, which we can normalize to ArrayLike.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#6272a4># Start with {, end with }, comma-separated quoted words</span>
+</span></span><span style=display:flex><span>_single_restricted <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^{([ ]*[\&#34;</span><span style=color:#f1fa8c>\&#39;</span><span style=color:#f1fa8c>][A-Za-z0-9\-_]+[\&#34;</span><span style=color:#f1fa8c>\&#39;</span><span style=color:#f1fa8c>][,]?)+}$&#39;</span>) 
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>is_trivial</span>(s):
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> s<span style=color:#ff79c6>.</span>lower() <span style=color:#ff79c6>in</span> [<span style=color:#f1fa8c>&#39;float&#39;</span>, <span style=color:#f1fa8c>&#39;int&#39;</span>, <span style=color:#f1fa8c>&#39;bool&#39;</span>, <span style=color:#f1fa8c>&#39;str&#39;</span>, <span style=color:#f1fa8c>&#39;set&#39;</span>, <span style=color:#f1fa8c>&#39;list&#39;</span>, <span style=color:#f1fa8c>&#39;dict&#39;</span>, <span style=color:#f1fa8c>&#39;tuple&#39;</span>, <span style=color:#f1fa8c>&#39;callable&#39;</span>, <span style=color:#f1fa8c>&#39;array-like&#39;</span>, <span style=color:#f1fa8c>&#39;none&#39;</span>]:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> _single_restricted<span style=color:#ff79c6>.</span>match(s):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> s<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#39; or &#39;</span>) <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>all</span>([is_redundant(c<span style=color:#ff79c6>.</span>strip()) <span style=color:#ff79c6>for</span> c <span style=color:#ff79c6>in</span> s<span style=color:#ff79c6>.</span>split(<span style=color:#f1fa8c>&#39; or &#39;</span>)]):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>False</span>
+</span></span></code></pre></div><p>Skipping such types reduces our output to 154 lines:</p><pre tabindex=0><code>19##
+14#1-D array#1-D array
+10#1D or 2D array-like#1D|2D array-like
+9#(float, float)#tuple[float, float]
+8#indexable object#indexable object
+7#color#color
+7#`~matplotlib.lines.Line2D`#matplotlib.lines.Line2D
+7#callable or ndarray#callable|ndarray
+6#list of `.Line2D`#Sequence[Line2D]
+6#array (length N) or scalar#array|scalar|tuple[length N]
+5#str or `~matplotlib.colors.Colormap`#str|matplotlib.colors.Colormap
+5#`~matplotlib.colors.Normalize`#matplotlib.colors.Normalize
+5#1-D array or sequence#1-D array|sequence
+4#(M, N) array-like#ArrayLike|tuple[M, N]
+4#Transform#Transform
+3#`.Bbox`#Bbox
+3#`.BarContainer`#BarContainer
+3#float or array-like, shape (n, )#float|ArrayLike|shape|tuple[n, ]
+3#color or color sequence#color|color sequence
+3#array (length N)#array|tuple[length N]
+3#array of bool (length N)#Sequence[bool]|tuple[length N]
+3#`.PolyCollection`#PolyCollection
+3#2D array-like#2D array-like
+3#array-like, shape (n, )#ArrayLike|shape|tuple[n, ]
+3#`~.axes.Axes`#axes.Axes
+2#`.Text`#Text
+2#list of str#Sequence[str]
+2#[x0, y0, width, height]#tuple[x0, y0, width, height]
+2#`.Transform`#Transform
+2#`.Axes`#Axes
+2#`.patches.Rectangle`#patches.Rectangle
+2#4-tuple of `.patches.ConnectionPatch`#4-tuple of .patches.ConnectionPatch
+2#2-tuple of func, or Transform with an inverse#2-tuple of func|Transform with an inverse
+2#axes._secondary_axes.SecondaryAxis#axes._secondary_axes.SecondaryAxis
+2#str or `.Artist` or `.Transform` or callable or (float, float)#str|Artist|Transform|callable|tuple[float, float]
+2#`~matplotlib.patches.Polygon`#matplotlib.patches.Polygon
+2#list of colors#Sequence[colors]
+2#`~matplotlib.collections.LineCollection`#matplotlib.collections.LineCollection
+2#array-like or scalar#ArrayLike|scalar
+2#sequence#sequence
+2#array (length ``2*maxlags+1``)#array|tuple[length ``2*maxlags+1``]
+2#array  (length ``2*maxlags+1``)#array|tuple[length ``2*maxlags+1``]
+2#`.LineCollection` or `.Line2D`#LineCollection|Line2D
+2#`.Line2D` or None#Line2D|None
+2#array-like of length n#array-like of length n
+2#1D array-like#1D array-like
+2#float or array-like, shape(N,) or shape(2, N)#float|ArrayLike|shape(N|)|shape|tuple[2, N]
+2#int or (int, int)#int|tuple[int, int]
+2#Array or a sequence of vectors.#Array|a sequence of vectors.
+2#list of dicts#Sequence[dicts]
+2#`~matplotlib.image.AxesImage`#matplotlib.image.AxesImage
+2#{&#39;none&#39;, None, &#39;face&#39;, color, color sequence}#Literal[&#39;none&#39;, None, &#39;face&#39;, color, color sequence]
+2#`~.contour.QuadContourSet`#contour.QuadContourSet
+2#2D array#2D array
+2#1D array#1D array
+2#1-D arrays or sequences#1-D arrays|sequences
+2#float greater than -0.5#float greater than -0.5
+2#bool or &#39;line&#39;#bool|Literal[&#39;line&#39;]
+2#{&#34;linear&#34;, &#34;log&#34;, &#34;symlog&#34;, &#34;logit&#34;, ...} or `.ScaleBase`#ScaleBase|Literal[&#34;linear&#34;, &#34;log&#34;, &#34;symlog&#34;, &#34;logit&#34;, ...]
+2#`.MouseButton`#MouseButton
+2#Axes#Axes
+1#{&#39;center&#39;, &#39;left&#39;, &#39;right&#39;}, str#str|Literal[&#39;center&#39;, &#39;left&#39;, &#39;right&#39;]
+1#sequence of `.Artist`#Sequence[Artist]
+1#`~matplotlib.legend.Legend`#matplotlib.legend.Legend
+1#number#number
+1#ax#ax
+1#`.Annotation`#Annotation
+1#`.Line2D`#Line2D
+1#array-like or list of array-like#ArrayLike|list of array-like
+1#color or list of colors#color|Sequence[colors]
+1#str or tuple or list of such values#str|tuple|list of such values
+1#list of `.EventCollection`#Sequence[EventCollection]
+1#timezone string or `datetime.tzinfo`#timezone string|datetime.tzinfo
+1#list of `.Text`#Sequence[Text]
+1#sequence of tuples (*xmin*, *xwidth*)#Sequence[tuples]|tuple[*xmin*, *xwidth*]
+1#(*ymin*, *yheight*)#tuple[*ymin*, *yheight*]
+1#`~.collections.BrokenBarHCollection`#collections.BrokenBarHCollection
+1#`.StemContainer`#StemContainer
+1#`.ErrorbarContainer`#ErrorbarContainer
+1#float or (float, float)#float|tuple[float, float]
+1#color or sequence or sequence of color or None#color|sequence|Sequence[color]|None
+1#color or sequence of color or {&#39;face&#39;, &#39;none&#39;} or None#color|Sequence[color]|None|Literal[&#39;face&#39;, &#39;none&#39;]
+1#c#c
+1#array(N, 4) or None#array|None|tuple[N, 4]
+1#edgecolors#edgecolors
+1#array-like or list of colors or color#ArrayLike|Sequence[colors]|color
+1#`~.markers.MarkerStyle`#markers.MarkerStyle
+1#{&#39;face&#39;, &#39;none&#39;, *None*} or color or sequence of color#color|Sequence[color]|Literal[&#39;face&#39;, &#39;none&#39;, *None*]
+1#`~matplotlib.collections.PathCollection`#matplotlib.collections.PathCollection
+1#&#39;log&#39; or int or sequence#Literal[&#39;log&#39;]|int|sequence
+1#int &gt; 0#int &gt; 0
+1#4-tuple of float#4-tuple of float
+1#`~matplotlib.collections.PolyCollection`#matplotlib.collections.PolyCollection
+1#`.FancyArrow`#FancyArrow
+1#`matplotlib.quiver.Quiver`#matplotlib.quiver.Quiver
+1#`~matplotlib.quiver.Quiver`#matplotlib.quiver.Quiver
+1#bool or array-like of bool#bool|array-like of bool
+1#`~matplotlib.quiver.Barbs`#matplotlib.quiver.Barbs
+1#sequence of x, y, [color]#Sequence[x]|y|tuple[color]
+1#list of `~matplotlib.patches.Polygon`#Sequence[matplotlib.patches.Polygon]
+1#{{&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}}#{|Literal[&#39;pre&#39;, &#39;post&#39;, &#39;mid&#39;}]
+1#array-like or PIL image#ArrayLike|PIL image
+1#floats (left, right, bottom, top)#floats|tuple[left, right, bottom, top]
+1#float &gt; 0#float &gt; 0
+1#`matplotlib.collections.Collection`#matplotlib.collections.Collection
+1#`matplotlib.collections.QuadMesh`#matplotlib.collections.QuadMesh
+1#`.AxesImage` or `.PcolorImage` or `.QuadMesh`#AxesImage|PcolorImage|QuadMesh
+1#`.ContourSet` instance#ContourSet instance
+1#(n,) array or sequence of (n,) arrays#(n|) array|sequence of  arrays|tuple[n,]
+1#int or sequence or str#int|sequence|str
+1#(n,) array-like or None#ArrayLike|None|tuple[n,]
+1#bool or -1#bool|Literal[-1]
+1#array-like, scalar, or None#ArrayLike|scalar|None
+1#color or array-like of colors or None#color|array-like of colors|None
+1#array or list of arrays#array|Sequence[arrays]
+1#array#array
+1#`.BarContainer` or list of a single `.Polygon` or list of such objects#BarContainer|list of a single .Polygon|list of such objects
+1#float, array-like or None#float|ArrayLike|None
+1#`matplotlib.patches.StepPatch`#matplotlib.patches.StepPatch
+1#None or int or [int, int] or array-like or [array, array]#None|int|[int|int]|ArrayLike|tuple[array, array]
+1#array-like shape(2, 2)#array-like shape|tuple[2, 2]
+1#`~.matplotlib.collections.QuadMesh`#matplotlib.collections.QuadMesh
+1#`.Colormap`#Colormap
+1#*None* or (xmin, xmax)#*None*|tuple[xmin, xmax]
+1#`.AxesImage`#AxesImage
+1#float or &#39;present&#39;#float|Literal[&#39;present&#39;]
+1#{&#39;equal&#39;, &#39;auto&#39;, None} or float#float|Literal[&#39;equal&#39;, &#39;auto&#39;, None]
+1#`~matplotlib.image.AxesImage` or `.Line2D`#matplotlib.image.AxesImage|Line2D
+1#str, scalar or callable#str|scalar|callable
+1#result#result
+1#`~matplotlib.figure.Figure`#matplotlib.figure.Figure
+1#[left, bottom, width, height]#tuple[left, bottom, width, height]
+1#`.Figure`#Figure
+1#[left, bottom, width, height] or `~matplotlib.transforms.Bbox`#matplotlib.transforms.Bbox|tuple[left, bottom, width, height]
+1#Callable[[Axes, Renderer], Bbox]#Callable[|tuple[Axes, Renderer], Bbox]
+1#Patch#Patch
+1#Cycler#Cycler
+1#iterable#iterable
+1#None or str or (float, float)#None|str|tuple[float, float]
+1#(float, float) or {&#39;C&#39;, &#39;SW&#39;, &#39;S&#39;, &#39;SE&#39;, &#39;E&#39;, &#39;NE&#39;, ...}#Literal[&#39;C&#39;, &#39;SW&#39;, &#39;S&#39;, &#39;SE&#39;, &#39;E&#39;, &#39;NE&#39;, ...]|tuple[float, float]
+1#`.RendererBase` subclass.#RendererBase subclass.
+1#`.Line2D` properties#Line2D properties
+1#pair of ints (m, n)#pair of ints|tuple[m, n]
+1#The limit value after call to convert(), or None if limit is None.#The limit value after call to convert|None if limit is None.|tuple[]
+1#4-tuple or 3 tuple#4-tuple|3 tuple
+1#`matplotlib.backend_bases.MouseEvent`#matplotlib.backend_bases.MouseEvent
+1#`.RendererBase` subclass#RendererBase subclass
+1#list of `.Artist` or ``None``#Sequence[Artist]|None
+1#default: False#default: False
+1#`.BboxBase`#BboxBase
+1#`matplotlib.figure.Figure`#matplotlib.figure.Figure
+1#tuple (*nrows*, *ncols*, *index*) or int#tuple|int|tuple[*nrows*, *ncols*, *index*]
+1#list of floats#Sequence[floats]
+1#2-tuple of func, or `Transform` with an inverse.#2-tuple of func|Transform with an inverse.
+</code></pre><p>We can extend this further by dropping any types that are just classes we collected in our earlier section. This makes the most sense when processing a whole package (so we gather all the possible classes from the package). If I run the analyzer on all of <code>matplotlib</code>, I reduce the output from about 690 lines down to about 530.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>is_trivial</span>(s, m: <span style=color:#8be9fd;font-style:italic>str</span>, classes: <span style=color:#8be9fd;font-style:italic>set</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>):
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> s<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#39; or &#39;</span>) <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>all</span>([is_trivial(c<span style=color:#ff79c6>.</span>strip(), m, classes) <span style=color:#ff79c6>for</span> c <span style=color:#ff79c6>in</span> s<span style=color:#ff79c6>.</span>split(<span style=color:#f1fa8c>&#39; or &#39;</span>)]):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> _single_restricted<span style=color:#ff79c6>.</span>match(s):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    nt <span style=color:#ff79c6>=</span> normalize_type(s)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> nt<span style=color:#ff79c6>.</span>lower() <span style=color:#ff79c6>in</span> [<span style=color:#f1fa8c>&#39;float&#39;</span>, <span style=color:#f1fa8c>&#39;int&#39;</span>, <span style=color:#f1fa8c>&#39;bool&#39;</span>, <span style=color:#f1fa8c>&#39;str&#39;</span>, <span style=color:#f1fa8c>&#39;set&#39;</span>, <span style=color:#f1fa8c>&#39;list&#39;</span>, <span style=color:#f1fa8c>&#39;dict&#39;</span>, <span style=color:#f1fa8c>&#39;tuple&#39;</span>, <span style=color:#f1fa8c>&#39;array-like&#39;</span>, 
+</span></span><span style=display:flex><span>                     <span style=color:#f1fa8c>&#39;callable&#39;</span>, <span style=color:#f1fa8c>&#39;none&#39;</span>]:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> classes:
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Check unqualified classname</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> nt <span style=color:#ff79c6>in</span> classes: <span style=color:#6272a4># </span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Check full qualified classname</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> nt<span style=color:#ff79c6>.</span>startswith(m <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;.&#39;</span>):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> nt[nt<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#39;.&#39;</span>)<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>:] <span style=color:#ff79c6>in</span> classes:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span><span style=color:#ff79c6>...</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_post_process</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>, state: <span style=color:#8be9fd;font-style:italic>tuple</span>):
+</span></span><span style=display:flex><span>    result <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>    freq: Counter <span style=color:#ff79c6>=</span> state[<span style=color:#bd93f9>0</span>]
+</span></span><span style=display:flex><span>    imports: <span style=color:#8be9fd;font-style:italic>dict</span> <span style=color:#ff79c6>=</span> state[<span style=color:#bd93f9>1</span>]
+</span></span><span style=display:flex><span>    classes: <span style=color:#8be9fd;font-style:italic>set</span> <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>(imports<span style=color:#ff79c6>.</span>keys())
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> typ, cnt <span style=color:#ff79c6>in</span> freq<span style=color:#ff79c6>.</span>most_common():
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> is_trivial(typ, m, classes):
+</span></span><span style=display:flex><span>            result <span style=color:#ff79c6>+=</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>cnt<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>#</span><span style=color:#f1fa8c>{</span>typ<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>#</span><span style=color:#f1fa8c>{</span>normalize_type(typ)<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#39;</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> result
+</span></span></code></pre></div><h3 id=persistent-maps>Persistent Maps</h3><p>We could press on with reducing the output from analysis and there&rsquo;s some value in doing that, because all the remaining entries are going to need human inspection to come up with an equivalent type annotation. But we are at the point of diminishing returns now, where the risk is we will exclude ambiguous lines and end up with bad annotations (there&rsquo;s already a small risk of this from our last step if there are classes with identical names).</p><p>Instead, let&rsquo;s put the various pieces together to create the type translation function. As a precursor to calling this function, we would run the analysis phase to get the classes and collect all the &rsquo;non-trivial&rsquo; types. We can then load a persistent map file (which would be a human-edited output from an earlier analysis), to find even more annotations. Anything that is either non-trivial or missing from the persistent map file would be unhandled, and we can output those entries so they can be added to the map file for the next iteration.</p><p>There&rsquo;s a lot of changes needed for all of this, and rather than do them iteratively I&rsquo;ll show the end result.</p><p>Note: I store a lot of metadata from the analysis transformer for use by the stubbing transformer. LibCST has a metadata mechanism that would probably make all of this simpler, but frankly, I find the documentation next to useless, so I implemented my own. I mostly just rely on dictionaries that are keyed on &lsquo;contexts&rsquo;.</p><p>First, <code>utils.py</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>from</span> genericpath <span style=color:#ff79c6>import</span> isdir
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> glob
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> importlib
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> inspect
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> os
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> re
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> types <span style=color:#ff79c6>import</span> ModuleType
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> typing <span style=color:#ff79c6>import</span> Callable
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> .normalize <span style=color:#ff79c6>import</span> normalize_type
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>load_map</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>):
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd;font-style:italic>map</span> <span style=color:#ff79c6>=</span> {}
+</span></span><span style=display:flex><span>    mapfile <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;analysis/</span><span style=color:#f1fa8c>{</span>m<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>.map&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> os<span style=color:#ff79c6>.</span>path<span style=color:#ff79c6>.</span>exists(mapfile):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>with</span> <span style=color:#8be9fd;font-style:italic>open</span>(mapfile) <span style=color:#ff79c6>as</span> f:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> line <span style=color:#ff79c6>in</span> f:
+</span></span><span style=display:flex><span>                parts <span style=color:#ff79c6>=</span> line<span style=color:#ff79c6>.</span>strip()<span style=color:#ff79c6>.</span>split(<span style=color:#f1fa8c>&#39;#&#39;</span>)
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>map</span>[parts[<span style=color:#bd93f9>0</span>]] <span style=color:#ff79c6>=</span> parts[<span style=color:#bd93f9>1</span>]
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>map</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>get_module_and_children</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[ModuleType<span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>, <span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>list</span>[<span style=color:#8be9fd;font-style:italic>str</span>]]:
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>        mod <span style=color:#ff79c6>=</span> importlib<span style=color:#ff79c6>.</span>import_module(m)
+</span></span><span style=display:flex><span>        file <span style=color:#ff79c6>=</span> inspect<span style=color:#ff79c6>.</span>getfile(mod)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>except</span> Exception <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;Could not import module </span><span style=color:#f1fa8c>{</span>m<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>: </span><span style=color:#f1fa8c>{</span>e<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>None</span>, <span style=color:#ff79c6>None</span>, []
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    submodules <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> file<span style=color:#ff79c6>.</span>endswith(<span style=color:#f1fa8c>&#34;/__init__.py&#34;</span>):
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Get the parent directory and all the files in that directory</span>
+</span></span><span style=display:flex><span>        folder <span style=color:#ff79c6>=</span> file[:<span style=color:#ff79c6>-</span><span style=color:#bd93f9>12</span>]
+</span></span><span style=display:flex><span>        files <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> f <span style=color:#ff79c6>in</span> glob<span style=color:#ff79c6>.</span>glob(folder <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#34;/*&#34;</span>):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> f <span style=color:#ff79c6>==</span> file:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> f<span style=color:#ff79c6>.</span>endswith(<span style=color:#f1fa8c>&#39;.py&#39;</span>):
+</span></span><span style=display:flex><span>                submodules<span style=color:#ff79c6>.</span>append(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>m<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>.</span><span style=color:#f1fa8c>{</span>f[f<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#34;/&#34;</span>)<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>:<span style=color:#ff79c6>-</span><span style=color:#bd93f9>3</span>]<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>elif</span> os<span style=color:#ff79c6>.</span>path<span style=color:#ff79c6>.</span>isdir(f) <span style=color:#ff79c6>and</span> <span style=color:#ff79c6>not</span> f<span style=color:#ff79c6>.</span>endswith(<span style=color:#f1fa8c>&#39;__pycache__&#39;</span>):
+</span></span><span style=display:flex><span>                submodules<span style=color:#ff79c6>.</span>append(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>m<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>.</span><span style=color:#f1fa8c>{</span>f[f<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#34;/&#34;</span>)<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>:]<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> mod, file, submodules
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>process_module</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>, 
+</span></span><span style=display:flex><span>        state: <span style=color:#8be9fd;font-style:italic>object</span>,
+</span></span><span style=display:flex><span>        processor: Callable, 
+</span></span><span style=display:flex><span>        targeter: Callable,
+</span></span><span style=display:flex><span>        post_processor: Callable<span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>, 
+</span></span><span style=display:flex><span>        include_submodules: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>True</span>,
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>**</span>kwargs):
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    modules <span style=color:#ff79c6>=</span> [m]
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> modules:
+</span></span><span style=display:flex><span>        m <span style=color:#ff79c6>=</span> modules<span style=color:#ff79c6>.</span>pop()
+</span></span><span style=display:flex><span>        mod, file, submodules <span style=color:#ff79c6>=</span> get_module_and_children(m)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> include_submodules:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> mod:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>            modules<span style=color:#ff79c6>.</span>extend(submodules)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> mod:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        result <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>with</span> <span style=color:#8be9fd;font-style:italic>open</span>(file) <span style=color:#ff79c6>as</span> f:
+</span></span><span style=display:flex><span>                source <span style=color:#ff79c6>=</span> f<span style=color:#ff79c6>.</span>read()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>except</span> Exception <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>            <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;Failed to read </span><span style=color:#f1fa8c>{</span>file<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>: </span><span style=color:#f1fa8c>{</span>e<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#34;</span>)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        result <span style=color:#ff79c6>=</span> processor(mod, m, file, source, state, <span style=color:#ff79c6>**</span>kwargs)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> post_processor <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> result <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;Failed to process </span><span style=color:#f1fa8c>{</span>file<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#34;</span>)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                target <span style=color:#ff79c6>=</span> targeter(file)
+</span></span><span style=display:flex><span>                folder <span style=color:#ff79c6>=</span> target[: target<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#34;/&#34;</span>)]
+</span></span><span style=display:flex><span>                os<span style=color:#ff79c6>.</span>makedirs(folder, exist_ok<span style=color:#ff79c6>=</span><span style=color:#ff79c6>True</span>)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>with</span> <span style=color:#8be9fd;font-style:italic>open</span>(target, <span style=color:#f1fa8c>&#34;w&#34;</span>) <span style=color:#ff79c6>as</span> f:
+</span></span><span style=display:flex><span>                    f<span style=color:#ff79c6>.</span>write(result)
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;Processed file </span><span style=color:#f1fa8c>{</span>file<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> post_processor:
+</span></span><span style=display:flex><span>        result, rtn <span style=color:#ff79c6>=</span> post_processor(m, state)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> result:
+</span></span><span style=display:flex><span>            target <span style=color:#ff79c6>=</span> targeter(m)
+</span></span><span style=display:flex><span>            folder <span style=color:#ff79c6>=</span> target[: target<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#34;/&#34;</span>)]
+</span></span><span style=display:flex><span>            os<span style=color:#ff79c6>.</span>makedirs(folder, exist_ok<span style=color:#ff79c6>=</span><span style=color:#ff79c6>True</span>)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>with</span> <span style=color:#8be9fd;font-style:italic>open</span>(target, <span style=color:#f1fa8c>&#34;w&#34;</span>) <span style=color:#ff79c6>as</span> f:
+</span></span><span style=display:flex><span>                f<span style=color:#ff79c6>.</span>write(result)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> rtn
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#6272a4># Start with {, end with }, comma-separated quoted words</span>
+</span></span><span style=display:flex><span>_single_restricted <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;^{([ ]*[\&#34;</span><span style=color:#f1fa8c>\&#39;</span><span style=color:#f1fa8c>][A-Za-z0-9\-_]+[\&#34;</span><span style=color:#f1fa8c>\&#39;</span><span style=color:#f1fa8c>][,]?)+}$&#39;</span>) 
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>is_trivial</span>(s, m: <span style=color:#8be9fd;font-style:italic>str</span>, classes: <span style=color:#8be9fd;font-style:italic>set</span><span style=color:#ff79c6>|</span><span style=color:#8be9fd;font-style:italic>dict</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>):
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    s - the type docstring to check
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    m - the module name
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    classes - a set of class names or dictionary keyed on classnames 
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> s<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#39; or &#39;</span>) <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>all</span>([is_trivial(c<span style=color:#ff79c6>.</span>strip(), m, classes) <span style=color:#ff79c6>for</span> c <span style=color:#ff79c6>in</span> s<span style=color:#ff79c6>.</span>split(<span style=color:#f1fa8c>&#39; or &#39;</span>)]):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> _single_restricted<span style=color:#ff79c6>.</span>match(s):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    nt <span style=color:#ff79c6>=</span> normalize_type(s)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> nt<span style=color:#ff79c6>.</span>lower() <span style=color:#ff79c6>in</span> [<span style=color:#f1fa8c>&#39;float&#39;</span>, <span style=color:#f1fa8c>&#39;int&#39;</span>, <span style=color:#f1fa8c>&#39;bool&#39;</span>, <span style=color:#f1fa8c>&#39;str&#39;</span>, <span style=color:#f1fa8c>&#39;set&#39;</span>, <span style=color:#f1fa8c>&#39;list&#39;</span>, <span style=color:#f1fa8c>&#39;dict&#39;</span>, <span style=color:#f1fa8c>&#39;tuple&#39;</span>, <span style=color:#f1fa8c>&#39;array-like&#39;</span>, 
+</span></span><span style=display:flex><span>                     <span style=color:#f1fa8c>&#39;callable&#39;</span>, <span style=color:#f1fa8c>&#39;none&#39;</span>]:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> classes:
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Check unqualified classname</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> nt <span style=color:#ff79c6>in</span> classes: <span style=color:#6272a4># </span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Check full qualified classname</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> nt<span style=color:#ff79c6>.</span>startswith(m <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;.&#39;</span>):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> nt[nt<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#39;.&#39;</span>)<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>:] <span style=color:#ff79c6>in</span> classes:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>_generic_type_map <span style=color:#ff79c6>=</span> {
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;float&#39;</span>: <span style=color:#f1fa8c>&#39;float&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;int&#39;</span>: <span style=color:#f1fa8c>&#39;int&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;bool&#39;</span>: <span style=color:#f1fa8c>&#39;bool&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;str&#39;</span>: <span style=color:#f1fa8c>&#39;str&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;dict&#39;</span>: <span style=color:#f1fa8c>&#39;dict&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;list&#39;</span>: <span style=color:#f1fa8c>&#39;list&#39;</span>,
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>_generic_import_map <span style=color:#ff79c6>=</span> {
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Then, the <code>analyzer.py</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>from</span> ast <span style=color:#ff79c6>import</span> Num
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> collections <span style=color:#ff79c6>import</span> Counter
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> inspect
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> json
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> os
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> types <span style=color:#ff79c6>import</span> ModuleType
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> xml.etree.ElementInclude <span style=color:#ff79c6>import</span> include
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> libcst <span style=color:#ff79c6>as</span> cst
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> .basetransformer <span style=color:#ff79c6>import</span> BaseTransformer
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> .utils <span style=color:#ff79c6>import</span> process_module, is_trivial, load_map
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> .parser <span style=color:#ff79c6>import</span> NumpyDocstringParser
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> .normalize <span style=color:#ff79c6>import</span> normalize_type
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>class</span> <span style=color:#50fa7b>AnalyzingTransformer</span>(BaseTransformer):
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> __init__(self, 
+</span></span><span style=display:flex><span>            mod: ModuleType, 
+</span></span><span style=display:flex><span>            modname: <span style=color:#8be9fd;font-style:italic>str</span>,
+</span></span><span style=display:flex><span>            fname: <span style=color:#8be9fd;font-style:italic>str</span>, 
+</span></span><span style=display:flex><span>            counter: Counter,
+</span></span><span style=display:flex><span>            classes: <span style=color:#8be9fd;font-style:italic>dict</span>,
+</span></span><span style=display:flex><span>            docs: <span style=color:#8be9fd;font-style:italic>dict</span>):
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>__init__(modname, fname)
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_mod <span style=color:#ff79c6>=</span> mod
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_parser <span style=color:#ff79c6>=</span> NumpyDocstringParser()
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_counter <span style=color:#ff79c6>=</span> counter
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_classes <span style=color:#ff79c6>=</span> classes
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_docs <span style=color:#ff79c6>=</span> {}
+</span></span><span style=display:flex><span>        docs[modname] <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_docs
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_classname <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_analyze_obj</span>(self, obj, context: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>dict</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>str</span>]<span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>, <span style=color:#ff79c6>...</span>]:
+</span></span><span style=display:flex><span>        doc <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> obj:
+</span></span><span style=display:flex><span>            doc <span style=color:#ff79c6>=</span> inspect<span style=color:#ff79c6>.</span>getdoc(obj)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> doc:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span>
+</span></span><span style=display:flex><span>        rtn <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_parser<span style=color:#ff79c6>.</span>parse(doc)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> section <span style=color:#ff79c6>in</span> rtn:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> section:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>for</span> typ <span style=color:#ff79c6>in</span> section<span style=color:#ff79c6>.</span>values():
+</span></span><span style=display:flex><span>                    self<span style=color:#ff79c6>.</span>_counter[typ] <span style=color:#ff79c6>+=</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> rtn
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    @staticmethod
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>get_top_level_obj</span>(mod: ModuleType, fname: <span style=color:#8be9fd;font-style:italic>str</span>, oname: <span style=color:#8be9fd;font-style:italic>str</span>):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> mod<span style=color:#ff79c6>.</span>__dict__[oname]
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>except</span> KeyError <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>                submod <span style=color:#ff79c6>=</span> fname[fname<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#39;/&#39;</span>)<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>:<span style=color:#ff79c6>-</span><span style=color:#bd93f9>3</span>]
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> mod<span style=color:#ff79c6>.</span>__dict__[submod]<span style=color:#ff79c6>.</span>__dict__[oname]
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>except</span> Exception:
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>fname<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>: Could not get obj for </span><span style=color:#f1fa8c>{</span>oname<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>visit_ClassDef</span>(self, node: cst<span style=color:#ff79c6>.</span>ClassDef) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        rtn <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>visit_ClassDef(node)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> self<span style=color:#ff79c6>.</span>at_top_level_class_level():
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_classname <span style=color:#ff79c6>=</span> node<span style=color:#ff79c6>.</span>name<span style=color:#ff79c6>.</span>value
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_classes[self<span style=color:#ff79c6>.</span>_classname] <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_modname
+</span></span><span style=display:flex><span>            obj <span style=color:#ff79c6>=</span> AnalyzingTransformer<span style=color:#ff79c6>.</span>get_top_level_obj(self<span style=color:#ff79c6>.</span>_mod, self<span style=color:#ff79c6>.</span>_fname, node<span style=color:#ff79c6>.</span>name<span style=color:#ff79c6>.</span>value)
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_docs[self<span style=color:#ff79c6>.</span>context()] <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_analyze_obj(obj, self<span style=color:#ff79c6>.</span>_classname)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> rtn
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>visit_FunctionDef</span>(self, node: cst<span style=color:#ff79c6>.</span>FunctionDef) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        outer_context <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>context()
+</span></span><span style=display:flex><span>        rtn <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>visit_FunctionDef(node)
+</span></span><span style=display:flex><span>        name <span style=color:#ff79c6>=</span> node<span style=color:#ff79c6>.</span>name<span style=color:#ff79c6>.</span>value
+</span></span><span style=display:flex><span>        obj <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        context <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>context()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> self<span style=color:#ff79c6>.</span>at_top_level_function_level():
+</span></span><span style=display:flex><span>            <span style=color:#6272a4>#context = name</span>
+</span></span><span style=display:flex><span>            obj <span style=color:#ff79c6>=</span> AnalyzingTransformer<span style=color:#ff79c6>.</span>get_top_level_obj(self<span style=color:#ff79c6>.</span>_mod, self<span style=color:#ff79c6>.</span>_fname, name)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>elif</span> self<span style=color:#ff79c6>.</span>at_top_level_class_method_level():
+</span></span><span style=display:flex><span>            <span style=color:#6272a4>#context = f&#39;{self._classname}.{name}&#39;</span>
+</span></span><span style=display:flex><span>            parent <span style=color:#ff79c6>=</span> AnalyzingTransformer<span style=color:#ff79c6>.</span>get_top_level_obj(self<span style=color:#ff79c6>.</span>_mod, self<span style=color:#ff79c6>.</span>_fname, self<span style=color:#ff79c6>.</span>_classname)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> parent:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> name <span style=color:#ff79c6>in</span> parent<span style=color:#ff79c6>.</span>__dict__:
+</span></span><span style=display:flex><span>                    obj <span style=color:#ff79c6>=</span> parent<span style=color:#ff79c6>.</span>__dict__[name]
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>self<span style=color:#ff79c6>.</span>_fname<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>: Could not get obj for </span><span style=color:#f1fa8c>{</span>context<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span><span style=display:flex><span>        docs <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_analyze_obj(obj, context)
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_docs[context] <span style=color:#ff79c6>=</span> docs
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> name <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;__init__&#39;</span>:
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># If we actually had a docstring with params section, we&#39;re done</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> docs <span style=color:#ff79c6>and</span> docs[<span style=color:#bd93f9>0</span>]:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> rtn
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># Else use the class docstring for __init__</span>
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_docs[context] <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_docs<span style=color:#ff79c6>.</span>get(outer_context)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> rtn
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>leave_FunctionDef</span>(
+</span></span><span style=display:flex><span>        self, original_node: cst<span style=color:#ff79c6>.</span>FunctionDef, updated_node: cst<span style=color:#ff79c6>.</span>FunctionDef
+</span></span><span style=display:flex><span>    ) <span style=color:#ff79c6>-&gt;</span> cst<span style=color:#ff79c6>.</span>CSTNode:
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Add a special entry for the return type</span>
+</span></span><span style=display:flex><span>        context <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>context()
+</span></span><span style=display:flex><span>        doc <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_docs[context]
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> doc:
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_docs[context <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;-&gt;&#39;</span>] <span style=color:#ff79c6>=</span> doc[<span style=color:#bd93f9>1</span>]
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>leave_FunctionDef(original_node, updated_node)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>visit_Param</span>(self, node: cst<span style=color:#ff79c6>.</span>Param) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        parent_context <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>context()
+</span></span><span style=display:flex><span>        parent_doc <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_docs<span style=color:#ff79c6>.</span>get(parent_context)
+</span></span><span style=display:flex><span>        rtn <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>visit_Param(node)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> parent_doc <span style=color:#ff79c6>and</span> <span style=color:#ff79c6>not</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(parent_doc, <span style=color:#8be9fd;font-style:italic>str</span>):
+</span></span><span style=display:flex><span>             <span style=color:#6272a4># The string check makes sure it&#39;s not a parameter of a lambda or function that was </span>
+</span></span><span style=display:flex><span>             <span style=color:#6272a4># assigned as a default value of some other parameter</span>
+</span></span><span style=display:flex><span>            param_docs <span style=color:#ff79c6>=</span> parent_doc[<span style=color:#bd93f9>0</span>]
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> param_docs:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>                    self<span style=color:#ff79c6>.</span>_docs[self<span style=color:#ff79c6>.</span>context()] <span style=color:#ff79c6>=</span> param_docs<span style=color:#ff79c6>.</span>get(node<span style=color:#ff79c6>.</span>name<span style=color:#ff79c6>.</span>value)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>except</span> Exception <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>                    <span style=color:#8be9fd;font-style:italic>print</span>(e)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> rtn
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_analyze</span>(mod: ModuleType, m: <span style=color:#8be9fd;font-style:italic>str</span>, fname: <span style=color:#8be9fd;font-style:italic>str</span>, source: <span style=color:#8be9fd;font-style:italic>str</span>, state: <span style=color:#8be9fd;font-style:italic>tuple</span>, <span style=color:#ff79c6>**</span>kwargs):
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>        cstree <span style=color:#ff79c6>=</span> cst<span style=color:#ff79c6>.</span>parse_module(source)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>except</span> Exception <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>        patcher <span style=color:#ff79c6>=</span> AnalyzingTransformer(mod, m, fname, 
+</span></span><span style=display:flex><span>            counter<span style=color:#ff79c6>=</span>state[<span style=color:#bd93f9>0</span>], 
+</span></span><span style=display:flex><span>            classes <span style=color:#ff79c6>=</span> state[<span style=color:#bd93f9>1</span>],
+</span></span><span style=display:flex><span>            docs <span style=color:#ff79c6>=</span> state[<span style=color:#bd93f9>2</span>])
+</span></span><span style=display:flex><span>        cstree<span style=color:#ff79c6>.</span>visit(patcher)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>except</span>:  <span style=color:#6272a4># Exception as e:</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Note: I know that e is undefined below; this actually lets me</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># successfully see the stack trace from the original exception</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># as traceback.print_exc() was not working for me.</span>
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;Failed to analyze file: </span><span style=color:#f1fa8c>{</span>e<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#34;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> state
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_post_process</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>, state: <span style=color:#8be9fd;font-style:italic>tuple</span>):
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd;font-style:italic>map</span> <span style=color:#ff79c6>=</span> load_map(m)
+</span></span><span style=display:flex><span>    result <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>    freq: Counter <span style=color:#ff79c6>=</span> state[<span style=color:#bd93f9>0</span>]
+</span></span><span style=display:flex><span>    classes: <span style=color:#8be9fd;font-style:italic>dict</span> <span style=color:#ff79c6>=</span> state[<span style=color:#bd93f9>1</span>]
+</span></span><span style=display:flex><span>    docs: <span style=color:#8be9fd;font-style:italic>dict</span> <span style=color:#ff79c6>=</span> state[<span style=color:#bd93f9>2</span>]
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> typ, cnt <span style=color:#ff79c6>in</span> freq<span style=color:#ff79c6>.</span>most_common():
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> typ <span style=color:#ff79c6>not</span> <span style=color:#ff79c6>in</span> <span style=color:#8be9fd;font-style:italic>map</span> <span style=color:#ff79c6>and</span> <span style=color:#ff79c6>not</span> is_trivial(typ, m, classes):
+</span></span><span style=display:flex><span>            result <span style=color:#ff79c6>+=</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>typ<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>#</span><span style=color:#f1fa8c>{</span>normalize_type(typ)<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#39;</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> result, (<span style=color:#8be9fd;font-style:italic>map</span>, classes, docs)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_targeter</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>str</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#34;&#34;&#34; Turn module name into map file name &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#34;analysis/</span><span style=color:#f1fa8c>{</span>m<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>.map.missing&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>analyze_module</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>, include_submodules: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>True</span>):
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> process_module(m, (Counter(), {}, {}), _analyze, _targeter, post_processor<span style=color:#ff79c6>=</span>_post_process,
+</span></span><span style=display:flex><span>        include_submodules<span style=color:#ff79c6>=</span>include_submodules)
+</span></span></code></pre></div><p>And then, the updated <code>stubber.py</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>from</span> __future__ <span style=color:#ff79c6>import</span> annotations
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> asyncio.proactor_events <span style=color:#ff79c6>import</span> _ProactorBaseWritePipeTransport
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> glob
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> inspect
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> os
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> re
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> types <span style=color:#ff79c6>import</span> ModuleType
+</span></span><span style=display:flex><span><span style=color:#ff79c6>import</span> libcst <span style=color:#ff79c6>as</span> cst
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> docs2stubs.analyzer <span style=color:#ff79c6>import</span> analyze_module
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> docs2stubs.normalize <span style=color:#ff79c6>import</span> normalize_type
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> .basetransformer <span style=color:#ff79c6>import</span> BaseTransformer
+</span></span><span style=display:flex><span><span style=color:#ff79c6>from</span> .utils <span style=color:#ff79c6>import</span> is_trivial, process_module
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>class</span> <span style=color:#50fa7b>StubbingTransformer</span>(BaseTransformer):
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> __init__(self, modname: <span style=color:#8be9fd;font-style:italic>str</span>, fname: <span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>map</span>: <span style=color:#8be9fd;font-style:italic>dict</span>, classes: <span style=color:#8be9fd;font-style:italic>dict</span>, docs: <span style=color:#8be9fd;font-style:italic>dict</span>, 
+</span></span><span style=display:flex><span>        strip_defaults<span style=color:#ff79c6>=</span><span style=color:#ff79c6>False</span>, infer_types_from_defaults<span style=color:#ff79c6>=</span><span style=color:#ff79c6>False</span>):
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>__init__(modname, fname)
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_map <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>map</span>
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_classes <span style=color:#ff79c6>=</span> classes
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_docs <span style=color:#ff79c6>=</span> docs[modname]
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_strip_defaults <span style=color:#ff79c6>=</span> strip_defaults
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_infer_types <span style=color:#ff79c6>=</span> infer_types_from_defaults
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_method_names <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_local_class_names <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_need_imports <span style=color:#ff79c6>=</span> {}
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_ident_re <span style=color:#ff79c6>=</span> re<span style=color:#ff79c6>.</span>compile(<span style=color:#f1fa8c>r</span><span style=color:#f1fa8c>&#39;([A-Za-z_][A-Za-z0-9_]*)&#39;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    @staticmethod
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>get_value_type</span>(node: cst<span style=color:#ff79c6>.</span>CSTNode) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>str</span><span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>        typ: <span style=color:#8be9fd;font-style:italic>str</span><span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span><span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(node, cst<span style=color:#ff79c6>.</span>Name):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> node<span style=color:#ff79c6>.</span>value <span style=color:#ff79c6>in</span> [ <span style=color:#f1fa8c>&#39;True&#39;</span>, <span style=color:#f1fa8c>&#39;False&#39;</span>]:
+</span></span><span style=display:flex><span>                typ <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;bool&#39;</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>elif</span> node<span style=color:#ff79c6>.</span>value <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;None&#39;</span>:
+</span></span><span style=display:flex><span>                typ <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;None&#39;</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> k, v <span style=color:#ff79c6>in</span> {
+</span></span><span style=display:flex><span>                cst<span style=color:#ff79c6>.</span>Integer: <span style=color:#f1fa8c>&#39;int&#39;</span>,
+</span></span><span style=display:flex><span>                cst<span style=color:#ff79c6>.</span>Float: <span style=color:#f1fa8c>&#39;float&#39;</span>,
+</span></span><span style=display:flex><span>                cst<span style=color:#ff79c6>.</span>Imaginary: <span style=color:#f1fa8c>&#39;complex&#39;</span>,
+</span></span><span style=display:flex><span>                cst<span style=color:#ff79c6>.</span>BaseString: <span style=color:#f1fa8c>&#39;str&#39;</span>,
+</span></span><span style=display:flex><span>                cst<span style=color:#ff79c6>.</span>BaseDict: <span style=color:#f1fa8c>&#39;dict&#39;</span>,
+</span></span><span style=display:flex><span>                cst<span style=color:#ff79c6>.</span>BaseList: <span style=color:#f1fa8c>&#39;list&#39;</span>,
+</span></span><span style=display:flex><span>                cst<span style=color:#ff79c6>.</span>BaseSlice: <span style=color:#f1fa8c>&#39;slice&#39;</span>,
+</span></span><span style=display:flex><span>                cst<span style=color:#ff79c6>.</span>BaseSet: <span style=color:#f1fa8c>&#39;set&#39;</span>,
+</span></span><span style=display:flex><span>                <span style=color:#6272a4># TODO: check the next two</span>
+</span></span><span style=display:flex><span>                cst<span style=color:#ff79c6>.</span>Lambda: <span style=color:#f1fa8c>&#39;Callable&#39;</span>,
+</span></span><span style=display:flex><span>                cst<span style=color:#ff79c6>.</span>MatchPattern: <span style=color:#f1fa8c>&#39;pattern&#39;</span>
+</span></span><span style=display:flex><span>            }<span style=color:#ff79c6>.</span>items():
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(node, k):
+</span></span><span style=display:flex><span>                    typ <span style=color:#ff79c6>=</span> v
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>break</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> typ
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>get_assign_value</span>(self, node: cst<span style=color:#ff79c6>.</span>Assign) <span style=color:#ff79c6>-&gt;</span> cst<span style=color:#ff79c6>.</span>CSTNode:
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># See if this is an alias, in which case we want to</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># preserve the value; else we set the new value to ...</span>
+</span></span><span style=display:flex><span>        new_value <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(node<span style=color:#ff79c6>.</span>value, cst<span style=color:#ff79c6>.</span>Name) <span style=color:#ff79c6>and</span> <span style=color:#ff79c6>not</span> self<span style=color:#ff79c6>.</span>in_function():
+</span></span><span style=display:flex><span>            check <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> self<span style=color:#ff79c6>.</span>at_top_level():
+</span></span><span style=display:flex><span>                check <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_local_class_names
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>elif</span> self<span style=color:#ff79c6>.</span>at_top_level_class_level(): <span style=color:#6272a4># Class level</span>
+</span></span><span style=display:flex><span>                check <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_method_names
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> node<span style=color:#ff79c6>.</span>value<span style=color:#ff79c6>.</span>value <span style=color:#ff79c6>in</span> check:
+</span></span><span style=display:flex><span>                new_value <span style=color:#ff79c6>=</span> node<span style=color:#ff79c6>.</span>value
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> new_value <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>            new_value <span style=color:#ff79c6>=</span> cst<span style=color:#ff79c6>.</span>parse_expression(<span style=color:#f1fa8c>&#34;...&#34;</span>)  
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> new_value
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>get_assign_props</span>(self, node: cst<span style=color:#ff79c6>.</span>Assign) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>(<span style=color:#8be9fd;font-style:italic>str</span><span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>, cst<span style=color:#ff79c6>.</span>CSTNode):
+</span></span><span style=display:flex><span>         typ <span style=color:#ff79c6>=</span> StubbingTransformer<span style=color:#ff79c6>.</span>get_value_type(node<span style=color:#ff79c6>.</span>value)
+</span></span><span style=display:flex><span>         value<span style=color:#ff79c6>=</span>self<span style=color:#ff79c6>.</span>get_assign_value(node)
+</span></span><span style=display:flex><span>         <span style=color:#ff79c6>return</span> typ, value
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>leave_Assign</span>(
+</span></span><span style=display:flex><span>        self, original_node: cst<span style=color:#ff79c6>.</span>Assign, updated_node: cst<span style=color:#ff79c6>.</span>Assign
+</span></span><span style=display:flex><span>    ) <span style=color:#ff79c6>-&gt;</span> cst<span style=color:#ff79c6>.</span>CSTNode:
+</span></span><span style=display:flex><span>        typ, value <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>get_assign_props(original_node)
+</span></span><span style=display:flex><span>        typ <span style=color:#ff79c6>=</span> StubbingTransformer<span style=color:#ff79c6>.</span>get_value_type(original_node<span style=color:#ff79c6>.</span>value)
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Make sure the assignment was not to a tuple before</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># changing to AnnAssign</span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># TODO: if this is an attribute, see if it had an annotation in </span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># the class docstring and use that</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> typ <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>not</span> <span style=color:#ff79c6>None</span> <span style=color:#ff79c6>and</span> <span style=color:#8be9fd;font-style:italic>len</span>(original_node<span style=color:#ff79c6>.</span>targets) <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>1</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> cst<span style=color:#ff79c6>.</span>AnnAssign(target<span style=color:#ff79c6>=</span>original_node<span style=color:#ff79c6>.</span>targets[<span style=color:#bd93f9>0</span>]<span style=color:#ff79c6>.</span>target,
+</span></span><span style=display:flex><span>                annotation<span style=color:#ff79c6>=</span>cst<span style=color:#ff79c6>.</span>Annotation(annotation<span style=color:#ff79c6>=</span>cst<span style=color:#ff79c6>.</span>Name(typ)),
+</span></span><span style=display:flex><span>                value<span style=color:#ff79c6>=</span>value)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> updated_node<span style=color:#ff79c6>.</span>with_changes(value<span style=color:#ff79c6>=</span>value)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>leave_AnnAssign</span>(
+</span></span><span style=display:flex><span>        self, original_node: cst<span style=color:#ff79c6>.</span>Assign, updated_node: cst<span style=color:#ff79c6>.</span>Assign
+</span></span><span style=display:flex><span>    ) <span style=color:#ff79c6>-&gt;</span> cst<span style=color:#ff79c6>.</span>CSTNode:
+</span></span><span style=display:flex><span>        value<span style=color:#ff79c6>=</span>self<span style=color:#ff79c6>.</span>get_assign_value(original_node)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> updated_node<span style=color:#ff79c6>.</span>with_changes(value<span style=color:#ff79c6>=</span>value)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>leave_Param</span>(
+</span></span><span style=display:flex><span>        self, original_node: cst<span style=color:#ff79c6>.</span>Param, updated_node: cst<span style=color:#ff79c6>.</span>Param
+</span></span><span style=display:flex><span>    ) <span style=color:#ff79c6>-&gt;</span> cst<span style=color:#ff79c6>.</span>CSTNode:
+</span></span><span style=display:flex><span>        doctyp <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_docs<span style=color:#ff79c6>.</span>get(self<span style=color:#ff79c6>.</span>context())
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>leave_Param(original_node, updated_node)
+</span></span><span style=display:flex><span>        annotation <span style=color:#ff79c6>=</span> original_node<span style=color:#ff79c6>.</span>annotation
+</span></span><span style=display:flex><span>        default <span style=color:#ff79c6>=</span> original_node<span style=color:#ff79c6>.</span>default
+</span></span><span style=display:flex><span>        valtyp <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        is_optional <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> default:
+</span></span><span style=display:flex><span>            valtyp <span style=color:#ff79c6>=</span> StubbingTransformer<span style=color:#ff79c6>.</span>get_value_type(default) <span style=color:#6272a4># Inferred type from default</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>not</span> valtyp <span style=color:#ff79c6>or</span> self<span style=color:#ff79c6>.</span>_strip_defaults):
+</span></span><span style=display:flex><span>                <span style=color:#6272a4># Default is something too complex for a stub or should be stripped; replace with &#39;...&#39;</span>
+</span></span><span style=display:flex><span>                default <span style=color:#ff79c6>=</span> cst<span style=color:#ff79c6>.</span>parse_expression(<span style=color:#f1fa8c>&#34;...&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> doctyp <span style=color:#ff79c6>and</span> <span style=color:#ff79c6>not</span> annotation:
+</span></span><span style=display:flex><span>            typ <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> doctyp <span style=color:#ff79c6>in</span> self<span style=color:#ff79c6>.</span>_map:
+</span></span><span style=display:flex><span>                typ <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_map[doctyp]
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>elif</span> is_trivial(doctyp, self<span style=color:#ff79c6>.</span>_modname, self<span style=color:#ff79c6>.</span>_classes):
+</span></span><span style=display:flex><span>                typ <span style=color:#ff79c6>=</span> normalize_type(doctyp)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> typ:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> typ<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#39;list&#39;</span>) <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>0</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#6272a4># Make this more robust</span>
+</span></span><span style=display:flex><span>                    typ <span style=color:#ff79c6>=</span> typ<span style=color:#ff79c6>.</span>replace(<span style=color:#f1fa8c>&#39;list&#39;</span>, <span style=color:#f1fa8c>&#39;Sequence&#39;</span>)
+</span></span><span style=display:flex><span>                    self<span style=color:#ff79c6>.</span>_need_imports[<span style=color:#f1fa8c>&#39;Sequence&#39;</span>] <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;typing&#39;</span>
+</span></span><span style=display:flex><span>                <span style=color:#6272a4># Figure out other needed imports. A crude but maybe good</span>
+</span></span><span style=display:flex><span>                <span style=color:#6272a4># enough approach is to search for identifiers with a regexp, and</span>
+</span></span><span style=display:flex><span>                <span style=color:#6272a4># then add those if they are in the imports dict.</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>for</span> m <span style=color:#ff79c6>in</span> self<span style=color:#ff79c6>.</span>_ident_re<span style=color:#ff79c6>.</span>findall(typ):
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>if</span> m <span style=color:#ff79c6>in</span> [<span style=color:#f1fa8c>&#39;Any&#39;</span>, <span style=color:#f1fa8c>&#39;Callable&#39;</span>, <span style=color:#f1fa8c>&#39;Iterable&#39;</span>, <span style=color:#f1fa8c>&#39;Literal&#39;</span>, <span style=color:#f1fa8c>&#39;Sequence&#39;</span>]:
+</span></span><span style=display:flex><span>                        self<span style=color:#ff79c6>.</span>_need_imports[m] <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;typing&#39;</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>elif</span> m <span style=color:#ff79c6>in</span> self<span style=color:#ff79c6>.</span>_classes <span style=color:#ff79c6>and</span> m <span style=color:#ff79c6>not</span> <span style=color:#ff79c6>in</span> self<span style=color:#ff79c6>.</span>_local_class_names:
+</span></span><span style=display:flex><span>                        self<span style=color:#ff79c6>.</span>_need_imports[m] <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_classes[m]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>                <span style=color:#6272a4># If the default value is None, make sure we include it in the type</span>
+</span></span><span style=display:flex><span>                is_optional <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;None&#39;</span> <span style=color:#ff79c6>in</span> typ<span style=color:#ff79c6>.</span>split(<span style=color:#f1fa8c>&#39;|&#39;</span>)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> is_optional <span style=color:#ff79c6>and</span> valtyp <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;None&#39;</span>:
+</span></span><span style=display:flex><span>                    typ <span style=color:#ff79c6>=</span> typ <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;|None&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;Annotated </span><span style=color:#f1fa8c>{</span>self<span style=color:#ff79c6>.</span>context()<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c> with </span><span style=color:#f1fa8c>{</span>typ<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c> from </span><span style=color:#f1fa8c>{</span>doctyp<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span><span style=display:flex><span>                annotation <span style=color:#ff79c6>=</span> cst<span style=color:#ff79c6>.</span>Annotation(annotation<span style=color:#ff79c6>=</span>cst<span style=color:#ff79c6>.</span>parse_expression(typ))
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;Could not annotate </span><span style=color:#f1fa8c>{</span>self<span style=color:#ff79c6>.</span>context()<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c> from </span><span style=color:#f1fa8c>{</span>doctyp<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> self<span style=color:#ff79c6>.</span>_infer_types <span style=color:#ff79c6>and</span> valtyp <span style=color:#ff79c6>and</span> <span style=color:#ff79c6>not</span> annotation <span style=color:#ff79c6>and</span> valtyp <span style=color:#ff79c6>!=</span> <span style=color:#f1fa8c>&#39;None&#39;</span>:
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># Use the inferred type from default value as long as it is not None</span>
+</span></span><span style=display:flex><span>            annotation <span style=color:#ff79c6>=</span> cst<span style=color:#ff79c6>.</span>Annotation(annotation<span style=color:#ff79c6>=</span>cst<span style=color:#ff79c6>.</span>Name(valtyp))
+</span></span><span style=display:flex><span>            
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> updated_node<span style=color:#ff79c6>.</span>with_changes(annotation<span style=color:#ff79c6>=</span>annotation, default<span style=color:#ff79c6>=</span>default)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>visit_ClassDef</span>(self, node: cst<span style=color:#ff79c6>.</span>ClassDef) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Record the names of top-level classes</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> self<span style=color:#ff79c6>.</span>in_class():
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_local_class_names<span style=color:#ff79c6>.</span>add(node<span style=color:#ff79c6>.</span>name<span style=color:#ff79c6>.</span>value)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>visit_ClassDef(node)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>leave_ClassDef</span>(self, original_node: cst<span style=color:#ff79c6>.</span>ClassDef, updated_node: cst<span style=color:#ff79c6>.</span>ClassDef) <span style=color:#ff79c6>-&gt;</span> cst<span style=color:#ff79c6>.</span>CSTNode:
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>leave_ClassDef(original_node, updated_node)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> self<span style=color:#ff79c6>.</span>in_class():
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># Clear the method name set</span>
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_method_names <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> updated_node
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># Nested class; return ...</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> cst<span style=color:#ff79c6>.</span>parse_statement(<span style=color:#f1fa8c>&#39;...&#39;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>visit_FunctionDef</span>(self, node: cst<span style=color:#ff79c6>.</span>FunctionDef) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> self<span style=color:#ff79c6>.</span>at_top_level_class_level():
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># Record the method name</span>
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_method_names<span style=color:#ff79c6>.</span>add(node<span style=color:#ff79c6>.</span>name<span style=color:#ff79c6>.</span>value)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>visit_FunctionDef(node)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>leave_FunctionDef</span>(
+</span></span><span style=display:flex><span>        self, original_node: cst<span style=color:#ff79c6>.</span>FunctionDef, updated_node: cst<span style=color:#ff79c6>.</span>FunctionDef
+</span></span><span style=display:flex><span>    ) <span style=color:#ff79c6>-&gt;</span> cst<span style=color:#ff79c6>.</span>CSTNode:
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#34;&#34;&#34;Remove function bodies&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        doctyp <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_docs<span style=color:#ff79c6>.</span>get(self<span style=color:#ff79c6>.</span>context() <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;-&gt;&#39;</span>)
+</span></span><span style=display:flex><span>        annotation <span style=color:#ff79c6>=</span> original_node<span style=color:#ff79c6>.</span>returns
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>super</span>()<span style=color:#ff79c6>.</span>leave_FunctionDef(original_node, updated_node)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> self<span style=color:#ff79c6>.</span>in_function(): 
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># Nested function; return ...</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> cst<span style=color:#ff79c6>.</span>parse_statement(<span style=color:#f1fa8c>&#39;...&#39;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> annotation <span style=color:#ff79c6>and</span> doctyp:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>all</span>([t <span style=color:#ff79c6>in</span> self<span style=color:#ff79c6>.</span>_map <span style=color:#ff79c6>or</span> is_trivial(t, self<span style=color:#ff79c6>.</span>_modname, self<span style=color:#ff79c6>.</span>_classes) <span style=color:#ff79c6>for</span> t <span style=color:#ff79c6>in</span> doctyp<span style=color:#ff79c6>.</span>values()]):
+</span></span><span style=display:flex><span>                v <span style=color:#ff79c6>=</span> [self<span style=color:#ff79c6>.</span>_map[t] <span style=color:#ff79c6>if</span> t <span style=color:#ff79c6>in</span> self<span style=color:#ff79c6>.</span>_map <span style=color:#ff79c6>else</span> normalize_type(t) <span style=color:#ff79c6>for</span> t <span style=color:#ff79c6>in</span> doctyp<span style=color:#ff79c6>.</span>values()]
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>len</span>(v) <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>1</span>:
+</span></span><span style=display:flex><span>                    rtntyp <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;tuple[&#39;</span> <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;, &#39;</span><span style=color:#ff79c6>.</span>join(v) <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;]&#39;</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                    rtntyp <span style=color:#ff79c6>=</span> v[<span style=color:#bd93f9>0</span>]
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;Annotating </span><span style=color:#f1fa8c>{</span>self<span style=color:#ff79c6>.</span>context()<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>-&gt; as </span><span style=color:#f1fa8c>{</span>rtntyp<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>)   
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> updated_node<span style=color:#ff79c6>.</span>with_changes(body<span style=color:#ff79c6>=</span>cst<span style=color:#ff79c6>.</span>parse_statement(<span style=color:#f1fa8c>&#34;...&#34;</span>), 
+</span></span><span style=display:flex><span>                    returns<span style=color:#ff79c6>=</span>cst<span style=color:#ff79c6>.</span>Annotation(annotation<span style=color:#ff79c6>=</span>cst<span style=color:#ff79c6>.</span>parse_expression(rtntyp)))    
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>print</span>(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;Could not annotate </span><span style=color:#f1fa8c>{</span>self<span style=color:#ff79c6>.</span>context()<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>-&gt; from </span><span style=color:#f1fa8c>{</span>doctyp<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>&#39;</span>) 
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Remove the body only</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> updated_node<span style=color:#ff79c6>.</span>with_changes(body<span style=color:#ff79c6>=</span>cst<span style=color:#ff79c6>.</span>parse_statement(<span style=color:#f1fa8c>&#34;...&#34;</span>))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>leave_SimpleStatementLine</span>(
+</span></span><span style=display:flex><span>        self,
+</span></span><span style=display:flex><span>        original_node: cst<span style=color:#ff79c6>.</span>SimpleStatementLine,
+</span></span><span style=display:flex><span>        updated_node: cst<span style=color:#ff79c6>.</span>SimpleStatementLine,
+</span></span><span style=display:flex><span>    ) <span style=color:#ff79c6>-&gt;</span> cst<span style=color:#ff79c6>.</span>CSTNode:
+</span></span><span style=display:flex><span>        newbody <span style=color:#ff79c6>=</span> [
+</span></span><span style=display:flex><span>            node
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> node <span style=color:#ff79c6>in</span> updated_node<span style=color:#ff79c6>.</span>body
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>any</span>(
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>isinstance</span>(node, cls)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>for</span> cls <span style=color:#ff79c6>in</span> [cst<span style=color:#ff79c6>.</span>Assign, cst<span style=color:#ff79c6>.</span>AnnAssign, cst<span style=color:#ff79c6>.</span>Import, cst<span style=color:#ff79c6>.</span>ImportFrom]
+</span></span><span style=display:flex><span>            )
+</span></span><span style=display:flex><span>        ]
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> updated_node<span style=color:#ff79c6>.</span>with_changes(body<span style=color:#ff79c6>=</span>newbody)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>leave_Module</span>(
+</span></span><span style=display:flex><span>        self, original_node: cst<span style=color:#ff79c6>.</span>Module, updated_node: cst<span style=color:#ff79c6>.</span>Module
+</span></span><span style=display:flex><span>    ) <span style=color:#ff79c6>-&gt;</span> cst<span style=color:#ff79c6>.</span>Module:
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#34;&#34;&#34;Remove everything from the body that is not an import,
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        class def, function def, or assignment.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        newbody <span style=color:#ff79c6>=</span> [
+</span></span><span style=display:flex><span>            node
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> node <span style=color:#ff79c6>in</span> updated_node<span style=color:#ff79c6>.</span>body
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>any</span>(
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>isinstance</span>(node, cls)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>for</span> cls <span style=color:#ff79c6>in</span> [cst<span style=color:#ff79c6>.</span>ClassDef, cst<span style=color:#ff79c6>.</span>FunctionDef, cst<span style=color:#ff79c6>.</span>SimpleStatementLine]
+</span></span><span style=display:flex><span>            )
+</span></span><span style=display:flex><span>        ]
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> updated_node<span style=color:#ff79c6>.</span>with_changes(body<span style=color:#ff79c6>=</span>newbody)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>patch_source</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>, fname: <span style=color:#8be9fd;font-style:italic>str</span>, source: <span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>map</span>: <span style=color:#8be9fd;font-style:italic>dict</span>, imports: <span style=color:#8be9fd;font-style:italic>dict</span>, docs: <span style=color:#8be9fd;font-style:italic>dict</span>, strip_defaults: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>str</span><span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>        cstree <span style=color:#ff79c6>=</span> cst<span style=color:#ff79c6>.</span>parse_module(source)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>except</span> Exception <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    patcher <span style=color:#ff79c6>=</span> StubbingTransformer(m, fname, <span style=color:#8be9fd;font-style:italic>map</span>, imports, docs, strip_defaults<span style=color:#ff79c6>=</span>strip_defaults)
+</span></span><span style=display:flex><span>    modified <span style=color:#ff79c6>=</span> cstree<span style=color:#ff79c6>.</span>visit(patcher)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    imports <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> module <span style=color:#ff79c6>in</span> <span style=color:#8be9fd;font-style:italic>set</span>(patcher<span style=color:#ff79c6>.</span>_need_imports<span style=color:#ff79c6>.</span>values()):
+</span></span><span style=display:flex><span>        typs <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> k, v <span style=color:#ff79c6>in</span> patcher<span style=color:#ff79c6>.</span>_need_imports<span style=color:#ff79c6>.</span>items():
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> v <span style=color:#ff79c6>==</span> module:
+</span></span><span style=display:flex><span>                typs<span style=color:#ff79c6>.</span>append(k)
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># TODO: make these relative imports if appropriate</span>
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>+=</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;from </span><span style=color:#f1fa8c>{</span>module<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c> import </span><span style=color:#f1fa8c>{</span><span style=color:#f1fa8c>&#34;,&#34;</span><span style=color:#ff79c6>.</span>join(typs)<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#39;</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> imports:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> imports <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>\n\n</span><span style=color:#f1fa8c>&#39;</span> <span style=color:#ff79c6>+</span> modified<span style=color:#ff79c6>.</span>code
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> modified<span style=color:#ff79c6>.</span>code
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_stub</span>(mod: ModuleType, m: <span style=color:#8be9fd;font-style:italic>str</span>, fname: <span style=color:#8be9fd;font-style:italic>str</span>, source: <span style=color:#8be9fd;font-style:italic>str</span>, state: <span style=color:#8be9fd;font-style:italic>tuple</span>, <span style=color:#ff79c6>**</span>kwargs):
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> patch_source(m, fname, source, state[<span style=color:#bd93f9>0</span>], state[<span style=color:#bd93f9>1</span>], state[<span style=color:#bd93f9>2</span>], <span style=color:#ff79c6>**</span>kwargs)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_targeter</span>(fname: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>str</span>:
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#34;typings/&#34;</span> <span style=color:#ff79c6>+</span> fname[fname<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#34;/site-packages/&#34;</span>) <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>15</span> :] <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#34;i&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>stub_module</span>(m: <span style=color:#8be9fd;font-style:italic>str</span>, include_submodules: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>True</span>, strip_defaults: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>):
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd;font-style:italic>map</span>, imports, docs <span style=color:#ff79c6>=</span> analyze_module(m, include_submodules<span style=color:#ff79c6>=</span>include_submodules)
+</span></span><span style=display:flex><span>    process_module(m, (<span style=color:#8be9fd;font-style:italic>map</span>, imports, docs), _stub, _targeter, include_submodules<span style=color:#ff79c6>=</span>include_submodules,
+</span></span><span style=display:flex><span>        strip_defaults<span style=color:#ff79c6>=</span>strip_defaults)
+</span></span></code></pre></div><p>At some point I want to write some code that will populate the map file for <code>matplotlib</code> from the stubs I have already created. However, the process above will never match what I did earlier, because it still relies on their being appropriate docstrings with types before it will add annotations. At best, this code will annotate every parameter and return type that is &lsquo;properly&rsquo; documented, but nothing more. When I created the <code>matplotlib</code> stubs, I started using context that I learned over time. For example, I recognized that a parameter named <code>gc</code> represented a <code>GraphicsContext</code> even if this wasn&rsquo;t otherwise documented. We could enhance this code to do something similar, but its still going to be quite dumb compared to a human that can apply judgement. So it&rsquo;s unlikely I will ever use this code to matplotlib stubs. However, it could be a great tool for other libraries for which we have no stubs. I&rsquo;ll be applying it next to scikit-learn and seeing how that goes, and will describe that in my next post.</p><hr><ul class=pager><li class=previous><a href=/post/creating-type-stubs-for-scientific-python-part-2/ data-toggle=tooltip data-placement=top title="Creating Type Stubs for Scientific Python (Part 2)">&larr;
+Previous Post</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramster.github.io issue-term=pathname theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a href=https://twitter.com/gramnix><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-twitter fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(e,t){var s=document,o="script",n=s.createElement(o),i=s.getElementsByTagName(o)[0];n.src=e,t&&n.addEventListener("load",function(e){t(null,e)},!1),i.parentNode.insertBefore(n,i)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,a=$(_containerSelector),r=a.find("h1,h2,h3,h4,h5,h6");return $(e).html(""),r.each(function(){t=$(this).prop("tagName").toLowerCase(),o="#"+$(this).prop("id"),n=$(this).text(),i=$('<a href="'+o+'" rel="nofollow">'+n+"</a>"),s=$('<li class="'+t+'_nav"></li>').append(i),$(e).append(s)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

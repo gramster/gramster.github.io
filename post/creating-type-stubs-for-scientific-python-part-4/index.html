@@ -253,390 +253,390 @@ STRING:    STRINGSQ | STRINGDQ
 %ignore _THE
 %ignore _TILDE
 </code></pre><p>Once I get an AST out of this, I can walk it with vistors to generate the formal types. I do that with this <code>Normalizer</code> class. I can largely ignore some
-ugly parts of the tree, like <code>shape</code>:</p><pre tabindex=0><code>class Normalizer(Interpreter):
-    def configure(self, module:str|None, classes: dict|None, is_param:bool):
-        if module is None:
-            module = &#39;&#39;
-        x = module.find(&#39;.&#39;)
-        if x &gt;= 0:
-            self._tlmodule = module[:x]  # top-level module
-        else:
-            self._tlmodule = module
-        self._module = module
-        self._classes = classes
-        self._is_param = is_param
-
-    def handle_qualname(self, name: str, imports: set) -&gt; str:
-        return name
-    
-    def start(self, tree) -&gt; tuple[str, set[str]|None]:
-        result = self.visit(tree.children[0])
-        return result
-        
-    def type_list(self, tree) -&gt; tuple[str, set[str]|None]:
-        types = [] # We want to preserve order so don&#39;t use a set
-        imports = set()
-        literals = []
-        has_none = False
-        for child in tree.children:
-            if isinstance(child, Tree):
-                result = self._visit_tree(child)
-                if result:
-                    if result[0] == &#39;None&#39;:
-                        has_none = True
-                        continue
-                    if result[0].startswith(&#39;Literal:&#39;):
-                        literals.append(result[0][8:])
-                    else:
-                        type = result[0]
-                        if type not in types:
-                            types.append(type)
-                    if result[1]:
-                        imports.update(result[1])
-
-        if not imports:
-            imports = None
-        if literals:
-            type = &#39;Literal[&#39; + &#39;,&#39;.join(literals) + &#39;]&#39;
-            if type not in types:
-                types.append(type)
-        if has_none:
-            type = &#39;None&#39;
-            if type not in types:
-                types.append(type)
-        type = &#39;|&#39;.join(types)
-        return type, imports
-
-    def type(self, tree)-&gt; tuple[str, set[str]|None]:
-        for child in tree.children:
-            if isinstance(child, Tree):
-                result = self._visit_tree(child)
-                if result:
-                    return result
-        assert(False)
-
-    _basic_types = {
-        &#39;ANY&#39;: &#39;Any&#39;,
-        &#39;INT&#39;: &#39;int&#39;,
-        &#39;STR&#39; : &#39;str&#39;,
-        &#39;FLOAT&#39;: &#39;float&#39;,
-        &#39;BOOL&#39;: &#39;bool&#39;,
-        &#39;SCALAR&#39;: &#39;Scalar&#39;,
-        &#39;COMPLEX&#39;: &#39;complex&#39;,
-        &#39;OBJECT&#39;: &#39;Any&#39;,
-        &#39;PATHLIKE&#39;: &#39;PathLike&#39;,
-        &#39;FILELIKE&#39;: &#39;FileLike&#39;
-    }
-
-    def array_type(self, tree):
-        arr_types = set()
-        elt_type = None
-        imports = set()
-        for child in tree.children:
-            if isinstance(child, Token) and (child.type == &#39;NDARRAY&#39; or child.type == &#39;NUMPY&#39;):
-                arr_types.add(&#39;NDArray&#39;)
-                imports.add((&#39;NDArray&#39;, &#39;numpy.typing&#39;))
-            if isinstance(child, Tree) and isinstance(child.data, Token):
-                tok = child.data
-                subrule = tok.value
-                if subrule == &#39;array_kinds&#39;:
-                    types, imp = self._visit_tree(child)
-                    arr_types.update(types)
-                    imports.update(imp)
-                elif subrule == &#39;array_kind&#39;:
-                    type, imp = self._visit_tree(child)
-                    arr_types.add(type)
-                    imports.update(imp)
-                elif subrule == &#39;basic_type&#39; or subrule == &#39;type_qualifier&#39;:
-                    elt_type, imp = self._visit_tree(child)
-                    imports.update(imp)
-        if elt_type:
-            if self._is_param and &#39;list&#39; in arr_types:
-                arr_types.add(&#39;Sequence&#39;)
-                arr_types.remove(&#39;list&#39;)
-                imports.add((&#39;Sequence&#39;, &#39;typing&#39;))
-            return &#39;|&#39;.join([f&#39;{typ}[{elt_type}]&#39; for typ in arr_types]), imports
-        else:
-            return &#39;|&#39;.join(arr_types), imports
-
-    def array_kinds(self, tree):
-        imports = set()
-        types = set()
-        for child in tree.children:
-            if isinstance(child, Tree):
-                type, imp = self._visit_tree(child)
-                imports.update(imp)
-                types.add(type)
-        return types, imports
-
-    def array_kind(self, tree):
-        arr_type = &#39;&#39;
-        imports = set()
-        for child in tree.children:
-            if isinstance(child, Token):
-                if child.type == &#39;NDARRAY&#39;:
-                    arr_type = &#39;NDArray&#39;
-                    imports.add((&#39;NDArray&#39;, &#39;numpy.typing&#39;))
-                elif self._is_param or child.type == &#39;ARRAYLIKE&#39;:
-                    arr_type = &#39;ArrayLike&#39;
-                    imports.add((&#39;ArrayLike&#39;, &#39;typing&#39;))
-                elif child.type == &#39;LIST&#39;:
-                    arr_type = &#39;list&#39;
-                elif child.type == &#39;SEQUENCE&#39;:
-                    arr_type = &#39;Sequence&#39;
-                    imports.add((&#39;Sequence&#39;, &#39;typing&#39;))
-                else:
-                    continue
-                break
-
-        if not arr_type:
-            arr_type = &#39;NDArray&#39;
-            imports.add((&#39;NDArray&#39;, &#39;numpy.typing&#39;))
-
-        return arr_type, imports
-
-    def type_qualifier(self, tree):
-        imports = set()
-        for child in tree.children:
-            if isinstance(child, Tree):
-                return self._visit_tree(child)
-            elif isinstance(child, Token):
-                if child.type == &#39;QUALNAME&#39;:
-                    type = self.handle_qualname(child.value, imports)
-                    return type, imports
-        # OF ARRAYS falls through here
-        imports.add((&#39;ArrayLike&#39;, &#39;numpy.typing&#39;))
-        return &#39;ArrayLike&#39;, imports
-
-    def basic_type(self, tree) -&gt; tuple[str, set[str]|None]:
-        imports = set()
-        for child in tree.children:
-            if isinstance(child, Token):
-                if child.type == &#39;ANY&#39;:
-                    imports.add((&#39;Any&#39;, &#39;typing&#39;))
-                    return &#39;Any&#39;, imports
-                elif child.type == &#39;SCALAR&#39;:
-                    imports.add((&#39;Scalar&#39;, f&#39;{self._tlmodule}._typing&#39;))
-                    return &#39;Scalar&#39;, imports
-                elif child.type == &#39;PATHLIKE&#39;:
-                    imports.add((&#39;PathLike&#39;, &#39;os&#39;))
-                elif child.type == &#39;FILELIKE&#39;:
-                    imports.add((&#39;IO&#39;, &#39;typing&#39;))
-                    return &#39;IO&#39;, imports
-                if child.type in self._basic_types:
-                    return self._basic_types[child.type], imports
-
-        assert(False)
-
-    def callable_type(self, tree):
-        # TODO: handle signature
-        imports = set()
-        imports.add((&#39;Callable&#39;, &#39;typing&#39;))
-        return &#34;Callable&#34;, imports
-
-    def class_type(self, tree):
-        cname = &#39;&#39;
-        for child in tree.children:
-            if isinstance(child, Tree):
-                return self._visit_tree(child)
-        assert(False)
-        
-    def class_specifier(self, tree):
-        imp = set()
-        cname = &#39;&#39;
-        for child in tree.children:
-            if isinstance(child, Token) and child.type == &#39;QUALNAME&#39;:
-                cname = child.value
-        # Now we need to normalize the name and find the imports
-        x = cname.rfind(&#39;.&#39;)
-        if x &gt; 0:
-            imp.add((cname[x+1:], cname[:x]))
-            cname = cname[x+1:]
-        elif self._classes and cname in self._classes:
-            imp.add((cname, self._classes[cname]))
-
-        return cname, imp
-
-    def dict_type(self, tree):
-        dict_type = &#39;&#39;
-        from_type = None
-        to_type = None
-        imports = set()
-        for child in tree.children:
-            if isinstance(child, Token):
-                if child.type == &#39;MAPPING&#39;:
-                    dict_type = &#39;Mapping&#39;
-                    imports.add((&#39;Mapping&#39;, &#39;typing&#39;))
-                elif child.type == &#39;DICT&#39;:
-                    dict_type = &#39;dict&#39;
-                elif child.type == &#39;QUALNAME&#39;:
-                    to_type = self.handle_qualname(child.value, imports)
-                    if from_type is None:
-                        from_type = to_type
-            elif isinstance(child, Tree):
-                to_type, imp = self._visit_tree(child)
-                if imp:
-                    imports.update(imp)
-                if from_type is None:
-                    from_type = to_type
-
-        if from_type is not None:
-            dict_type += f&#39;[{from_type}, {to_type}]&#39;
-
-        return dict_type, imports
-
-    
-    def qualname(self, tree):
-        for child in tree.children:
-            if isinstance(child, Token):
-                imports = set()
-                return self.handle_qualname(child.value, imports), imports
-            
-
-    def filelike_type(self, tree):
-        imports = set()
-        imports.add((&#39;FileLike&#39;, f&#39;{self._tlmodule}._typing&#39;))
-        return &#39;FileLike&#39;, imports
-
-    def generator_type(self, tree):
-        imports = set()
-        imports.add((&#39;Generator&#39;, &#39;collections.abc&#39;))
-        for child in tree.children:
-            if isinstance(child, Tree):
-                type, imp = self._visit_tree(child)
-                if type:
-                    imports.update(imp)
-                    return f&#39;Generator[{type}, None, None]&#39;, imports
-        return &#39;Generator&#39;, imports
-
-    def iterable_type(self, tree):
-        imports = set()
-        imports.add((&#39;Iterable&#39;, &#39;collections.abc&#39;))
-        for child in tree.children:
-            if isinstance(child, Tree):
-                type, imp = self._visit_tree(child)
-                if type:
-                    imports.update(imp)
-                    return f&#39;Iterable[{type}]&#39;, imports
-        return &#39;Iterable&#39;, imports
-    
-    def iterator_type(self, tree):
-        imports = set()
-        imports.add((&#39;Iterator&#39;, &#39;collections.abc&#39;))
-        for child in tree.children:
-            if isinstance(child, Tree):
-                type, imp = self._visit_tree(child)
-                if type:
-                    imports.update(imp)
-                    return f&#39;Iterator[{type}]&#39;, imports
-        return &#39;Iterator&#39;, imports
-    
-    def literal_type(self, tree)-&gt; tuple[str, set[str]|None]:
-        imports = set()
-        imports.add((&#39;Literal&#39;, &#39;typing&#39;))
-        assert(len(tree.children) == 1 and isinstance(tree.children[0], Token))
-        tok = tree.children[0]
-        type = tok.type
-        if type == &#39;STRING&#39; or type == &#39;NUMBER&#39;:
-            return f&#39;Literal:&#39; + tok.value, imports
-        if type == &#39;NONE&#39;:
-            return &#39;None&#39;, set()
-        if type == &#39;TRUE&#39;:
-            return &#39;Literal:True&#39;, imports
-        if type == &#39;FALSE&#39;:
-            return &#39;Literal:False&#39;, imports
-        assert(False)
-
-    def optional_type(self, tree):
-        for child in tree.children:
-            if isinstance(child, Tree):
-                type, imports = self._visit_tree(child)
-                type += &#39;|None&#39;
-                return type, imports
-        return &#39;None&#39;, set()
-
-    def restricted_type(self, tree):
-        imp = set()
-        types = []
-        values = []
-        rtn = &#39;&#39;
-        for child in tree.children:
-            if isinstance(child, Tree):
-                type, imports = self._visit_tree(child)
-                imp.update(imports)
-                if type.startswith(&#39;Literal:&#39;):
-                    values.append(type[8:])
-                else:
-                    types.append(&#39;None&#39;)
-            elif isinstance(child, Token) and child.type == &#39;STR&#39;:
-                types.append(&#39;str&#39;)
-        if values:
-            types.append(f&#39;Literal[{&#34;,&#34;.join(values)}]&#39;)
-            imp.add((&#39;Literal&#39;, &#39;typing&#39;))
-        return &#39;|&#39;.join(types), imp
-
-    def set_type(self, tree):
-        set_type = None
-        elt_type = None
-        imports = set()
-        for child in tree.children:
-            if isinstance(child, Token):
-                if child.type == &#39;SET&#39;:
-                    set_type = &#39;set&#39;
-                elif child.type == &#39;FROZENSET&#39;:
-                    set_type = &#39;frozenset&#39;
-            elif isinstance(child, Tree):
-                elt_type, imports = self._visit_tree(child)
-
-        if elt_type:
-            set_type += &#39;[&#39; + elt_type + &#39;]&#39;
-
-        return set_type, imports
-
-    def tuple_type(self, tree):
-        types = []
-        imp = set()
-        repeating = False
-        count = 1
-        has_shape = False
-        for child in tree.children:
-            if isinstance(child, Tree):
-                type, imports = self._visit_tree(child)
-                if type is None:
-                    has_shape = True
-                else:
-                    types.append(type)
-                    imp.update(imports)
-            elif isinstance(child, Token) and child.type in [&#39;OF&#39;, &#39;WITH&#39;]:
-                repeating = True
-            elif isinstance(child, Token) and child.type == &#39;NUMBER&#39;:
-                count = int(child.value)
-        if has_shape:
-            return &#39;tuple&#39;, None
-        if types:
-            if repeating:
-                if count &gt; 1:
-                    types = [&#34;|&#34;.join(types)] * count
-                else:
-                    return f&#39;tuple[{&#34;|&#34;.join(types)}, ...]&#39;, imp
-            
-            return f&#39;tuple[{&#34;,&#34;.join(types)}]&#39;, imp
-        return &#39;tuple&#39;, None
-
-    def union_type(self, tree):
-        types = set()
-        imports = set()
-        for child in tree.children:
-            if isinstance(child, Tree):
-                type, imp = self._visit_tree(child)
-                types.add(type)
-                imports.update(imp)
-        return &#39;|&#39;.join(types), imports
-    
-    def shape(self, tree):
-        return None, None
-    
-</code></pre><p>There is basically one Python method for each of the grammar rules. The methods return a Python type annotation as a string, and a set of imports that
+ugly parts of the tree, like <code>shape</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>class</span> <span style=color:#50fa7b>Normalizer</span>(Interpreter):
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>configure</span>(self, module:<span style=color:#8be9fd;font-style:italic>str</span><span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>, classes: <span style=color:#8be9fd;font-style:italic>dict</span><span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>, is_param:<span style=color:#8be9fd;font-style:italic>bool</span>):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> module <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>            module <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        x <span style=color:#ff79c6>=</span> module<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#39;.&#39;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> x <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>0</span>:
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_tlmodule <span style=color:#ff79c6>=</span> module[:x]  <span style=color:#6272a4># top-level module</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>            self<span style=color:#ff79c6>.</span>_tlmodule <span style=color:#ff79c6>=</span> module
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_module <span style=color:#ff79c6>=</span> module
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_classes <span style=color:#ff79c6>=</span> classes
+</span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_is_param <span style=color:#ff79c6>=</span> is_param
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>handle_qualname</span>(self, name: <span style=color:#8be9fd;font-style:italic>str</span>, imports: <span style=color:#8be9fd;font-style:italic>set</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>str</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> name
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>start</span>(self, tree) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>set</span>[<span style=color:#8be9fd;font-style:italic>str</span>]<span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>]:
+</span></span><span style=display:flex><span>        result <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>visit(tree<span style=color:#ff79c6>.</span>children[<span style=color:#bd93f9>0</span>])
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> result
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>type_list</span>(self, tree) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>set</span>[<span style=color:#8be9fd;font-style:italic>str</span>]<span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>]:
+</span></span><span style=display:flex><span>        types <span style=color:#ff79c6>=</span> [] <span style=color:#6272a4># We want to preserve order so don&#39;t use a set</span>
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        literals <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>        has_none <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                result <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> result:
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>if</span> result[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;None&#39;</span>:
+</span></span><span style=display:flex><span>                        has_none <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>                        <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>if</span> result[<span style=color:#bd93f9>0</span>]<span style=color:#ff79c6>.</span>startswith(<span style=color:#f1fa8c>&#39;Literal:&#39;</span>):
+</span></span><span style=display:flex><span>                        literals<span style=color:#ff79c6>.</span>append(result[<span style=color:#bd93f9>0</span>][<span style=color:#bd93f9>8</span>:])
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                        <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>=</span> result[<span style=color:#bd93f9>0</span>]
+</span></span><span style=display:flex><span>                        <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>not</span> <span style=color:#ff79c6>in</span> types:
+</span></span><span style=display:flex><span>                            types<span style=color:#ff79c6>.</span>append(<span style=color:#8be9fd;font-style:italic>type</span>)
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>if</span> result[<span style=color:#bd93f9>1</span>]:
+</span></span><span style=display:flex><span>                        imports<span style=color:#ff79c6>.</span>update(result[<span style=color:#bd93f9>1</span>])
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> imports:
+</span></span><span style=display:flex><span>            imports <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> literals:
+</span></span><span style=display:flex><span>            <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;Literal[&#39;</span> <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;,&#39;</span><span style=color:#ff79c6>.</span>join(literals) <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;]&#39;</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>not</span> <span style=color:#ff79c6>in</span> types:
+</span></span><span style=display:flex><span>                types<span style=color:#ff79c6>.</span>append(<span style=color:#8be9fd;font-style:italic>type</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> has_none:
+</span></span><span style=display:flex><span>            <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;None&#39;</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>not</span> <span style=color:#ff79c6>in</span> types:
+</span></span><span style=display:flex><span>                types<span style=color:#ff79c6>.</span>append(<span style=color:#8be9fd;font-style:italic>type</span>)
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;|&#39;</span><span style=color:#ff79c6>.</span>join(types)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>type</span>, imports
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>type</span>(self, tree)<span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>set</span>[<span style=color:#8be9fd;font-style:italic>str</span>]<span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>]:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                result <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> result:
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>return</span> result
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>assert</span>(<span style=color:#ff79c6>False</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    _basic_types <span style=color:#ff79c6>=</span> {
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#39;ANY&#39;</span>: <span style=color:#f1fa8c>&#39;Any&#39;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#39;INT&#39;</span>: <span style=color:#f1fa8c>&#39;int&#39;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#39;STR&#39;</span> : <span style=color:#f1fa8c>&#39;str&#39;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#39;FLOAT&#39;</span>: <span style=color:#f1fa8c>&#39;float&#39;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#39;BOOL&#39;</span>: <span style=color:#f1fa8c>&#39;bool&#39;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#39;SCALAR&#39;</span>: <span style=color:#f1fa8c>&#39;Scalar&#39;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#39;COMPLEX&#39;</span>: <span style=color:#f1fa8c>&#39;complex&#39;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#39;OBJECT&#39;</span>: <span style=color:#f1fa8c>&#39;Any&#39;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#39;PATHLIKE&#39;</span>: <span style=color:#f1fa8c>&#39;PathLike&#39;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#f1fa8c>&#39;FILELIKE&#39;</span>: <span style=color:#f1fa8c>&#39;FileLike&#39;</span>
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>array_type</span>(self, tree):
+</span></span><span style=display:flex><span>        arr_types <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        elt_type <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Token) <span style=color:#ff79c6>and</span> (child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;NDARRAY&#39;</span> <span style=color:#ff79c6>or</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;NUMPY&#39;</span>):
+</span></span><span style=display:flex><span>                arr_types<span style=color:#ff79c6>.</span>add(<span style=color:#f1fa8c>&#39;NDArray&#39;</span>)
+</span></span><span style=display:flex><span>                imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;NDArray&#39;</span>, <span style=color:#f1fa8c>&#39;numpy.typing&#39;</span>))
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree) <span style=color:#ff79c6>and</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child<span style=color:#ff79c6>.</span>data, Token):
+</span></span><span style=display:flex><span>                tok <span style=color:#ff79c6>=</span> child<span style=color:#ff79c6>.</span>data
+</span></span><span style=display:flex><span>                subrule <span style=color:#ff79c6>=</span> tok<span style=color:#ff79c6>.</span>value
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> subrule <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;array_kinds&#39;</span>:
+</span></span><span style=display:flex><span>                    types, imp <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                    arr_types<span style=color:#ff79c6>.</span>update(types)
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>update(imp)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>elif</span> subrule <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;array_kind&#39;</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#8be9fd;font-style:italic>type</span>, imp <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                    arr_types<span style=color:#ff79c6>.</span>add(<span style=color:#8be9fd;font-style:italic>type</span>)
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>update(imp)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>elif</span> subrule <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;basic_type&#39;</span> <span style=color:#ff79c6>or</span> subrule <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;type_qualifier&#39;</span>:
+</span></span><span style=display:flex><span>                    elt_type, imp <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>update(imp)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> elt_type:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> self<span style=color:#ff79c6>.</span>_is_param <span style=color:#ff79c6>and</span> <span style=color:#f1fa8c>&#39;list&#39;</span> <span style=color:#ff79c6>in</span> arr_types:
+</span></span><span style=display:flex><span>                arr_types<span style=color:#ff79c6>.</span>add(<span style=color:#f1fa8c>&#39;Sequence&#39;</span>)
+</span></span><span style=display:flex><span>                arr_types<span style=color:#ff79c6>.</span>remove(<span style=color:#f1fa8c>&#39;list&#39;</span>)
+</span></span><span style=display:flex><span>                imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;Sequence&#39;</span>, <span style=color:#f1fa8c>&#39;typing&#39;</span>))
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;|&#39;</span><span style=color:#ff79c6>.</span>join([<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>typ<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>[</span><span style=color:#f1fa8c>{</span>elt_type<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>]&#39;</span> <span style=color:#ff79c6>for</span> typ <span style=color:#ff79c6>in</span> arr_types]), imports
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;|&#39;</span><span style=color:#ff79c6>.</span>join(arr_types), imports
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>array_kinds</span>(self, tree):
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        types <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>type</span>, imp <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                imports<span style=color:#ff79c6>.</span>update(imp)
+</span></span><span style=display:flex><span>                types<span style=color:#ff79c6>.</span>add(<span style=color:#8be9fd;font-style:italic>type</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> types, imports
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>array_kind</span>(self, tree):
+</span></span><span style=display:flex><span>        arr_type <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Token):
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;NDARRAY&#39;</span>:
+</span></span><span style=display:flex><span>                    arr_type <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;NDArray&#39;</span>
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;NDArray&#39;</span>, <span style=color:#f1fa8c>&#39;numpy.typing&#39;</span>))
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>elif</span> self<span style=color:#ff79c6>.</span>_is_param <span style=color:#ff79c6>or</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;ARRAYLIKE&#39;</span>:
+</span></span><span style=display:flex><span>                    arr_type <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;ArrayLike&#39;</span>
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;ArrayLike&#39;</span>, <span style=color:#f1fa8c>&#39;typing&#39;</span>))
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>elif</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;LIST&#39;</span>:
+</span></span><span style=display:flex><span>                    arr_type <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;list&#39;</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>elif</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;SEQUENCE&#39;</span>:
+</span></span><span style=display:flex><span>                    arr_type <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;Sequence&#39;</span>
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;Sequence&#39;</span>, <span style=color:#f1fa8c>&#39;typing&#39;</span>))
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>continue</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>break</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> arr_type:
+</span></span><span style=display:flex><span>            arr_type <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;NDArray&#39;</span>
+</span></span><span style=display:flex><span>            imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;NDArray&#39;</span>, <span style=color:#f1fa8c>&#39;numpy.typing&#39;</span>))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> arr_type, imports
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>type_qualifier</span>(self, tree):
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>elif</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Token):
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;QUALNAME&#39;</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>handle_qualname(child<span style=color:#ff79c6>.</span>value, imports)
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>type</span>, imports
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># OF ARRAYS falls through here</span>
+</span></span><span style=display:flex><span>        imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;ArrayLike&#39;</span>, <span style=color:#f1fa8c>&#39;numpy.typing&#39;</span>))
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;ArrayLike&#39;</span>, imports
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>basic_type</span>(self, tree) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>set</span>[<span style=color:#8be9fd;font-style:italic>str</span>]<span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>]:
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Token):
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;ANY&#39;</span>:
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;Any&#39;</span>, <span style=color:#f1fa8c>&#39;typing&#39;</span>))
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;Any&#39;</span>, imports
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>elif</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;SCALAR&#39;</span>:
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;Scalar&#39;</span>, <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>self<span style=color:#ff79c6>.</span>_tlmodule<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>._typing&#39;</span>))
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;Scalar&#39;</span>, imports
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>elif</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;PATHLIKE&#39;</span>:
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;PathLike&#39;</span>, <span style=color:#f1fa8c>&#39;os&#39;</span>))
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>elif</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;FILELIKE&#39;</span>:
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;IO&#39;</span>, <span style=color:#f1fa8c>&#39;typing&#39;</span>))
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;IO&#39;</span>, imports
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>in</span> self<span style=color:#ff79c6>.</span>_basic_types:
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>return</span> self<span style=color:#ff79c6>.</span>_basic_types[child<span style=color:#ff79c6>.</span>type], imports
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>assert</span>(<span style=color:#ff79c6>False</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>callable_type</span>(self, tree):
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># TODO: handle signature</span>
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;Callable&#39;</span>, <span style=color:#f1fa8c>&#39;typing&#39;</span>))
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#34;Callable&#34;</span>, imports
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>class_type</span>(self, tree):
+</span></span><span style=display:flex><span>        cname <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>assert</span>(<span style=color:#ff79c6>False</span>)
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>class_specifier</span>(self, tree):
+</span></span><span style=display:flex><span>        imp <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        cname <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Token) <span style=color:#ff79c6>and</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;QUALNAME&#39;</span>:
+</span></span><span style=display:flex><span>                cname <span style=color:#ff79c6>=</span> child<span style=color:#ff79c6>.</span>value
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Now we need to normalize the name and find the imports</span>
+</span></span><span style=display:flex><span>        x <span style=color:#ff79c6>=</span> cname<span style=color:#ff79c6>.</span>rfind(<span style=color:#f1fa8c>&#39;.&#39;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> x <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span>:
+</span></span><span style=display:flex><span>            imp<span style=color:#ff79c6>.</span>add((cname[x<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>:], cname[:x]))
+</span></span><span style=display:flex><span>            cname <span style=color:#ff79c6>=</span> cname[x<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>:]
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>elif</span> self<span style=color:#ff79c6>.</span>_classes <span style=color:#ff79c6>and</span> cname <span style=color:#ff79c6>in</span> self<span style=color:#ff79c6>.</span>_classes:
+</span></span><span style=display:flex><span>            imp<span style=color:#ff79c6>.</span>add((cname, self<span style=color:#ff79c6>.</span>_classes[cname]))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> cname, imp
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>dict_type</span>(self, tree):
+</span></span><span style=display:flex><span>        dict_type <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        from_type <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        to_type <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Token):
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;MAPPING&#39;</span>:
+</span></span><span style=display:flex><span>                    dict_type <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;Mapping&#39;</span>
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;Mapping&#39;</span>, <span style=color:#f1fa8c>&#39;typing&#39;</span>))
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>elif</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;DICT&#39;</span>:
+</span></span><span style=display:flex><span>                    dict_type <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;dict&#39;</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>elif</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;QUALNAME&#39;</span>:
+</span></span><span style=display:flex><span>                    to_type <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>handle_qualname(child<span style=color:#ff79c6>.</span>value, imports)
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>if</span> from_type <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>                        from_type <span style=color:#ff79c6>=</span> to_type
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>elif</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                to_type, imp <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> imp:
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>update(imp)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> from_type <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>                    from_type <span style=color:#ff79c6>=</span> to_type
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> from_type <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>not</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>            dict_type <span style=color:#ff79c6>+=</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;[</span><span style=color:#f1fa8c>{</span>from_type<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>, </span><span style=color:#f1fa8c>{</span>to_type<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>]&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> dict_type, imports
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>qualname</span>(self, tree):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Token):
+</span></span><span style=display:flex><span>                imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> self<span style=color:#ff79c6>.</span>handle_qualname(child<span style=color:#ff79c6>.</span>value, imports), imports
+</span></span><span style=display:flex><span>            
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>filelike_type</span>(self, tree):
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;FileLike&#39;</span>, <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;</span><span style=color:#f1fa8c>{</span>self<span style=color:#ff79c6>.</span>_tlmodule<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>._typing&#39;</span>))
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;FileLike&#39;</span>, imports
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>generator_type</span>(self, tree):
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;Generator&#39;</span>, <span style=color:#f1fa8c>&#39;collections.abc&#39;</span>))
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>type</span>, imp <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>type</span>:
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>update(imp)
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;Generator[</span><span style=color:#f1fa8c>{</span><span style=color:#8be9fd;font-style:italic>type</span><span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>, None, None]&#39;</span>, imports
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;Generator&#39;</span>, imports
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>iterable_type</span>(self, tree):
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;Iterable&#39;</span>, <span style=color:#f1fa8c>&#39;collections.abc&#39;</span>))
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>type</span>, imp <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>type</span>:
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>update(imp)
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;Iterable[</span><span style=color:#f1fa8c>{</span><span style=color:#8be9fd;font-style:italic>type</span><span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>]&#39;</span>, imports
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;Iterable&#39;</span>, imports
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>iterator_type</span>(self, tree):
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;Iterator&#39;</span>, <span style=color:#f1fa8c>&#39;collections.abc&#39;</span>))
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>type</span>, imp <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>type</span>:
+</span></span><span style=display:flex><span>                    imports<span style=color:#ff79c6>.</span>update(imp)
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;Iterator[</span><span style=color:#f1fa8c>{</span><span style=color:#8be9fd;font-style:italic>type</span><span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>]&#39;</span>, imports
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;Iterator&#39;</span>, imports
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>literal_type</span>(self, tree)<span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>set</span>[<span style=color:#8be9fd;font-style:italic>str</span>]<span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>]:
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        imports<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;Literal&#39;</span>, <span style=color:#f1fa8c>&#39;typing&#39;</span>))
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>assert</span>(<span style=color:#8be9fd;font-style:italic>len</span>(tree<span style=color:#ff79c6>.</span>children) <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>and</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(tree<span style=color:#ff79c6>.</span>children[<span style=color:#bd93f9>0</span>], Token))
+</span></span><span style=display:flex><span>        tok <span style=color:#ff79c6>=</span> tree<span style=color:#ff79c6>.</span>children[<span style=color:#bd93f9>0</span>]
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>=</span> tok<span style=color:#ff79c6>.</span>type
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;STRING&#39;</span> <span style=color:#ff79c6>or</span> <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;NUMBER&#39;</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;Literal:&#39;</span> <span style=color:#ff79c6>+</span> tok<span style=color:#ff79c6>.</span>value, imports
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;NONE&#39;</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;None&#39;</span>, <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;TRUE&#39;</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;Literal:True&#39;</span>, imports
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;FALSE&#39;</span>:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;Literal:False&#39;</span>, imports
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>assert</span>(<span style=color:#ff79c6>False</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>optional_type</span>(self, tree):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>type</span>, imports <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>+=</span> <span style=color:#f1fa8c>&#39;|None&#39;</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>type</span>, imports
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;None&#39;</span>, <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>restricted_type</span>(self, tree):
+</span></span><span style=display:flex><span>        imp <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        types <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>        values <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>        rtn <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>type</span>, imports <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                imp<span style=color:#ff79c6>.</span>update(imports)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>type</span><span style=color:#ff79c6>.</span>startswith(<span style=color:#f1fa8c>&#39;Literal:&#39;</span>):
+</span></span><span style=display:flex><span>                    values<span style=color:#ff79c6>.</span>append(<span style=color:#8be9fd;font-style:italic>type</span>[<span style=color:#bd93f9>8</span>:])
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                    types<span style=color:#ff79c6>.</span>append(<span style=color:#f1fa8c>&#39;None&#39;</span>)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>elif</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Token) <span style=color:#ff79c6>and</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;STR&#39;</span>:
+</span></span><span style=display:flex><span>                types<span style=color:#ff79c6>.</span>append(<span style=color:#f1fa8c>&#39;str&#39;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> values:
+</span></span><span style=display:flex><span>            types<span style=color:#ff79c6>.</span>append(<span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;Literal[</span><span style=color:#f1fa8c>{</span><span style=color:#f1fa8c>&#34;,&#34;</span><span style=color:#ff79c6>.</span>join(values)<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>]&#39;</span>)
+</span></span><span style=display:flex><span>            imp<span style=color:#ff79c6>.</span>add((<span style=color:#f1fa8c>&#39;Literal&#39;</span>, <span style=color:#f1fa8c>&#39;typing&#39;</span>))
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;|&#39;</span><span style=color:#ff79c6>.</span>join(types), imp
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>set_type</span>(self, tree):
+</span></span><span style=display:flex><span>        set_type <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        elt_type <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Token):
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;SET&#39;</span>:
+</span></span><span style=display:flex><span>                    set_type <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;set&#39;</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>elif</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;FROZENSET&#39;</span>:
+</span></span><span style=display:flex><span>                    set_type <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#39;frozenset&#39;</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>elif</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                elt_type, imports <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> elt_type:
+</span></span><span style=display:flex><span>            set_type <span style=color:#ff79c6>+=</span> <span style=color:#f1fa8c>&#39;[&#39;</span> <span style=color:#ff79c6>+</span> elt_type <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;]&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> set_type, imports
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>tuple_type</span>(self, tree):
+</span></span><span style=display:flex><span>        types <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>        imp <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        repeating <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>        count <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>
+</span></span><span style=display:flex><span>        has_shape <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>type</span>, imports <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>is</span> <span style=color:#ff79c6>None</span>:
+</span></span><span style=display:flex><span>                    has_shape <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                    types<span style=color:#ff79c6>.</span>append(<span style=color:#8be9fd;font-style:italic>type</span>)
+</span></span><span style=display:flex><span>                    imp<span style=color:#ff79c6>.</span>update(imports)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>elif</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Token) <span style=color:#ff79c6>and</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>in</span> [<span style=color:#f1fa8c>&#39;OF&#39;</span>, <span style=color:#f1fa8c>&#39;WITH&#39;</span>]:
+</span></span><span style=display:flex><span>                repeating <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>elif</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Token) <span style=color:#ff79c6>and</span> child<span style=color:#ff79c6>.</span>type <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;NUMBER&#39;</span>:
+</span></span><span style=display:flex><span>                count <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>int</span>(child<span style=color:#ff79c6>.</span>value)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> has_shape:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;tuple&#39;</span>, <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> types:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> repeating:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> count <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>1</span>:
+</span></span><span style=display:flex><span>                    types <span style=color:#ff79c6>=</span> [<span style=color:#f1fa8c>&#34;|&#34;</span><span style=color:#ff79c6>.</span>join(types)] <span style=color:#ff79c6>*</span> count
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>else</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;tuple[</span><span style=color:#f1fa8c>{</span><span style=color:#f1fa8c>&#34;|&#34;</span><span style=color:#ff79c6>.</span>join(types)<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>, ...]&#39;</span>, imp
+</span></span><span style=display:flex><span>            
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>f</span><span style=color:#f1fa8c>&#39;tuple[</span><span style=color:#f1fa8c>{</span><span style=color:#f1fa8c>&#34;,&#34;</span><span style=color:#ff79c6>.</span>join(types)<span style=color:#f1fa8c>}</span><span style=color:#f1fa8c>]&#39;</span>, imp
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;tuple&#39;</span>, <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>union_type</span>(self, tree):
+</span></span><span style=display:flex><span>        types <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        imports <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>type</span>, imp <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                types<span style=color:#ff79c6>.</span>add(<span style=color:#8be9fd;font-style:italic>type</span>)
+</span></span><span style=display:flex><span>                imports<span style=color:#ff79c6>.</span>update(imp)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;|&#39;</span><span style=color:#ff79c6>.</span>join(types), imports
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>shape</span>(self, tree):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>None</span>, <span style=color:#ff79c6>None</span>
+</span></span><span style=display:flex><span>    
+</span></span></code></pre></div><p>There is basically one Python method for each of the grammar rules. The methods return a Python type annotation as a string, and a set of imports that
 may need to be added to the file for that annotation to be usable (e.g. if a type has <code>Sequence</code> in it, the imports need to record that we need to import
 <code>Sequence</code> from <code>typing</code>). It&rsquo;s up to each method/node to decide whether or not it wants to walk through its children, and how to handle the result.</p><p>Let&rsquo;s look at a simple example, <code>optional_type</code>. The grammar rule is:</p><pre tabindex=0><code>optional_type: OPTIONAL [_LBRACKET type _RBRACKET]
 </code></pre><p>which says that we could have the word &ldquo;optional&rdquo; or something like &ldquo;optional [float]&rdquo;. The method is:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>optional_type</span>(self, tree):

@@ -214,11 +214,11 @@ post-container"><p>Welcome back to this series on creating type stubs for scient
 </span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_lines: Deque <span style=color:#ff79c6>=</span> Deque()
 </span></span><span style=display:flex><span>        self<span style=color:#ff79c6>.</span>_sections: <span style=color:#8be9fd;font-style:italic>dict</span>[<span style=color:#8be9fd;font-style:italic>str</span>, Callable] <span style=color:#ff79c6>=</span> {}
 </span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    @abc<span style=color:#ff79c6>.</span>abstractmethod
+</span></span><span style=display:flex><span>    @abc.abstractmethod
 </span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_is_section_break</span>(self) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
 </span></span><span style=display:flex><span>            <span style=color:#ff79c6>...</span>
 </span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    @abc<span style=color:#ff79c6>.</span>abstractmethod
+</span></span><span style=display:flex><span>    @abc.abstractmethod
 </span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_is_section_header</span>(self) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>bool</span>:
 </span></span><span style=display:flex><span>        <span style=color:#ff79c6>...</span>
 </span></span><span style=display:flex><span>
@@ -302,7 +302,7 @@ post-container"><p>Welcome back to this series on creating type stubs for scient
 </span></span><span style=display:flex><span>                <span style=color:#f1fa8c>&#34;&#34;</span><span style=color:#ff79c6>.</span>join(after_colon)<span style=color:#ff79c6>.</span>strip())
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    @abc<span style=color:#ff79c6>.</span>abstractmethod
+</span></span><span style=display:flex><span>    @abc.abstractmethod
 </span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_consume_field</span>(self, prefer_type: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>
 </span></span><span style=display:flex><span>                       ) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>str</span>]: <span style=color:#ff79c6>...</span>
 </span></span><span style=display:flex><span>
@@ -332,7 +332,7 @@ post-container"><p>Welcome back to this series on creating type stubs for scient
 </span></span><span style=display:flex><span>                fields<span style=color:#ff79c6>.</span>append((name, typ))
 </span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> fields
 </span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    @abc<span style=color:#ff79c6>.</span>abstractmethod
+</span></span><span style=display:flex><span>    @abc.abstractmethod
 </span></span><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>_parse_returns_section</span>(self, section: <span style=color:#8be9fd;font-style:italic>str</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#ff79c6>None</span>:
 </span></span><span style=display:flex><span>        <span style=color:#ff79c6>...</span>
 </span></span><span style=display:flex><span>

@@ -1,0 +1,824 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Graham Wheeler's Random Forest"><meta property="og:type" content="article"><meta property="og:image" content="https://www.grahamwheeler.com/img/forest.jpg"><meta property="twitter:image" content="https://www.grahamwheeler.com/img/forest.jpg"><meta name=title content="Creating Type Stubs for Scientific Python (Part 4)"><meta property="og:title" content="Creating Type Stubs for Scientific Python (Part 4)"><meta property="twitter:title" content="Creating Type Stubs for Scientific Python (Part 4)"><meta name=description content="Thoughts on technology, management and math by Graham Wheeler"><meta property="og:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:description" content="Thoughts on technology, management and math by Graham Wheeler"><meta property="twitter:card" content="summary"><meta name=keyword content="Management, Psychology, Data Science, Mathematics, Software Engineering"><link rel="shortcut icon" href=/img/favicon.ico><title>Creating Type Stubs for Scientific Python (Part 4)-Graham Wheeler's Random Forest</title><link rel=canonical href=/post/creating-type-stubs-for-scientific-python-part-4/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.css><link href=https://cdn.jsdelivr.net/gh/FortAwesome/Font-Awesome@5.15.1/css/all.css rel=stylesheet type=text/css><script src=/js/jquery.min.js></script>
+<script src=/js/bootstrap.min.js></script>
+<script src=/js/hux-blog.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button>
+<a class=navbar-brand href=/>Graham Wheeler's Random Forest</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/top/books/>BOOKS</a></li><li><a href=/top/archive/>ARCHIVE</a></li><li><a href=/top/about/>ABOUT</a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/forest.jpg)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags></div><h1>Creating Type Stubs for Scientific Python (Part 4)</h1><h2 class=subheading></h2><span class=meta>Posted by
+Graham Wheeler
+on
+Saturday, December 3, 2022</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><h2 id=the-story-thus-far>The Story Thus Far</h2><p>Its been a while since the last post, mainly because I hit a speed bump along the way, which I have since addressed. It&rsquo;s worth recapping what was covered
+before.</p><ul><li>Scientific Python pacckages like matplotlib don&rsquo;t have much in the way of inline type annotations, nor do they have good type stubs available, but
+those would be very useful to improve the experience using them in code editors</li><li>they <em>do</em> have a standard form of docstrings, numpydoc format, and that includes parameter and return value descriptions that most of the time
+include descriptions of the types (albeit in an informal way)</li><li>I decided to build a tool to extract these and try to convert them to formal type annotations and generate stubs</li><li>the extraction part, and the &lsquo;insert converted annotations in to make stubs&rsquo; part, are reasonably straightforward, thanks in particular to Instagram&rsquo;s
+libCST library for concrete syntax tree visiting and transforming</li><li>I write the extracted descriptions plus my best effort at turning these into formal types into &lsquo;.map&rsquo; files, as part of an analysis phase; these are read
+back in and used during the stub generation phase. This provides the opportunity to examine the automated translation and make hand-corrections before
+generating the stubs. The corrected map files can be re-used when new package versions are released; the analysis phase will write any <em>new</em> type descriptions
+it sees to &lsquo;map.missing&rsquo; files while ignoring those in existing &lsquo;.map&rsquo; files; the &lsquo;.map&rsquo; files can then be updated with the new types in the &lsquo;.missing&rsquo; file</li><li>I dedup and aggregate the types, so the &lsquo;.map&rsquo; files also include a frequency count. This can reduce the number of types in the map files from thousands
+to hundreds, making the hand checking stage a much more tractable problem.</li><li>I further reduce the size of the map files by looking for cases that seem really trivial, and not including them; I will just convert them based on the
+trivial conversion when I create te stubs. For example, &lsquo;float&rsquo; or &lsquo;int&rsquo;, or &lsquo;array of float&rsquo;, etc.</li></ul><p>I started out looking at matplotlib and all the above was working well. However, when I looked at other libraries like SciPy and sklearn, I found a much
+bigger variety of forms in the docstring comments and my approach broke down.</p><h2 id=what-went-wrong>What Went Wrong</h2><p>There&rsquo;s nothing wrong with my overall process; the challenge came down to two key functions:</p><ul><li><code>is_trivial</code> takes a docstring type comment and returns whether or not it is trivial enough that we don&rsquo;t need to write it to the map file</li><li><code>normalize_type</code> translates the docstring comment to a formal type annotation, if it can</li></ul><p>These relied heavily on regular expressions that were shaped by what I was seeing in the matplotlib comments. Once I tried the code on other libraries, I had
+two serious breakdowns:</p><ul><li><code>is_trivial</code> admitted a lot of false positives; i.e. it thought a type was trivial when it was actually ambiguous. Think about something like
+&rsquo;list of int or float&rsquo;. This could be interpreted as <code>list[int|float]</code> or <code>list[int]|float</code> There is no way to tell what was intended! This <em>has</em> to
+go in the map file and be checked by hand.</li><li><code>normalize_type</code> failed on so many types that I wasn&rsquo;t actually getting a lot of type annotations out of the docstrings.</li></ul><p>The functions were already reasonably complex, leveraging a large set of regular expressions, and I just felt that trying to fix them by continuing
+down the regular expression route was asking for trouble. Certainly for <code>normalize_type</code>; I could keep using regular expressions for <code>is_trivial</code> but I
+clearly needed to raise the bar and become a lot more strict.</p><h2 id=a-parser-to-the-rescue>A Parser to the Rescue</h2><p>My knowledge about parsers mostly dates back to the &rsquo;90s, when I used to teach under- and post-graduate courses in compiler construction at the University of
+Cape Town. Back in those days, constructing parsers was non-trivial; we had tools that could take formal grammars and turn them into parsers, but you had to
+spend quite a bit of time eliminating the wrong types of recursiveness from your grammar. It wasn&rsquo;t always possible, and it was often tedious. I knew that
+the technology had advanced; we were largely stuck with single-token lookahead but then <a href=https://www.antlr.org/>Antlr</a> came along and allowed us to go from LL(1) or LR(1) to LL(k)
+(if you don&rsquo;t understand these terms don&rsquo;t worry about it). More recently I knew Guido had rewritten Python&rsquo;s parser using a &lsquo;PEG parser&rsquo;; I didn&rsquo;t really
+know much about them other that they seemed to allow a lot more grammar flexibility. So I started trying to come up with a grammar for the docstrings (if
+this sounds crazy to you, yeah, it kinda is), and using the Python PEG parser generator. I quickly discovered that that parser generator was pretty much
+intended for CPython and wasn&rsquo;t going to work, but then I discovered <a href=https://lark-parser.readthedocs.io/en/latest/>Lark</a>, which can parse <em>any</em> context-free
+grammar, according to the docs. I thought my prayers had been answered, and indeed they have, at the expense of computation time. Lark is fantastic. I
+have thrown the most ungodly awful grammar at it and it is working great.</p><h2 id=a-grammar-from-hell>A Grammar from Hell</h2><p>My process was pretty simple: take the types from the map files, and throw them at my elvolving grammar, and iterate on the grammar on each failure (or
+decide that the particular failing case wasn&rsquo;t worth the effort). In the end I got to about a 75% success rate, and the AST&rsquo;s that are produced in this
+process are for the most part pretty good at describing the type unambiguously. I don&rsquo;t think I could ask for much more, and I would get diminishing
+returns at this point. It might at some point be interesting to use the map files to train an ML model and see how that compares, but I&rsquo;m in no
+hurry to do that. So below, is the grammar of my nightmares. The evilness is mostly around arrays and the multivariate ways they can be expressed:</p><pre tabindex=0><code>start: type_list
+type_list: [RETURNS] type ((_COMMA|OR|_COMMA OR) type)* [_PERIOD|_COMMA] [[_LPAREN] DEFAULT [_EQUALS|_COLON] literal_type [_RPAREN] [_PERIOD]]
+type: array_type 
+    | basic_type [TYPE]
+    | callable_type 
+    | class_type 
+    | dict_type 
+    | filelike_type
+    | generator_type 
+    | iterable_type
+    | iterator_type
+    | literal_type 
+    | optional_type 
+    | restricted_type 
+    | set_type
+    | tuple_type 
+    | union_type 
+    | _LESSTHAN type _GRTRTHAN
+array_type: [NDARRAY|NUMPY] basic_type [_MINUS] array_kind [[_COMMA] (dimension | shape_qualifier)]
+          | [dimension] array_kinds [_COMMA] shape_qualifier [[_COMMA] type_qualifier] 
+          | [dimension] array_kinds [_COMMA] type_qualifier [[_COMMA] shape_qualifier] 
+          | shape basic_type array_kind
+          | dimension basic_type array_kind
+          | shape_qualifier array_kind [type_qualifier]
+          | type_qualifier array_kind [shape_qualifier]
+          | [dimension] array_kind
+array_kinds: array_kind | _LBRACE array_kind [ _COMMA array_kind]* _RBRACE
+array_kind: [A|AN] [SPARSE | _LPAREN SPARSE _RPAREN] ARRAYLIKE
+          | [A] LIST
+          | [A|AN] NDARRAY 
+          | [A] [SPARSE | _LPAREN SPARSE _RPAREN] MATRIX [CLASS]
+          | [A] SEQUENCE
+          | [A|AN] [SPARSE | _LPAREN SPARSE _RPAREN] ARRAY 
+          | ARRAYS 
+          | SPARSE
+dimension: _DIM ((OR | _SLASH) _DIM)* 
+        | (NUMBER|NAME) _X (NUMBER|NAME) 
+        | _LPAREN (NUMBER|NAME) _COMMA [NUMBER|NAME] [_COMMA [NUMBER|NAME]] _RPAREN
+        | ONED
+        | TWOD
+        | THREED
+shape_qualifier: [[WITH|OF] SHAPE] [_EQUALS|OF] (SIZE|LENGTH) (QUALNAME|NUMBER|shape)
+               | [[WITH|OF] SHAPE] [_EQUALS|OF] shape (OR shape)* [dimension]
+               | SAME SHAPE AS QUALNAME
+               | OF SHAPE QUALNAME
+shape: (_LPAREN|_LBRACKET) shape_element (_COMMA shape_element)* _COMMA? (_RPAREN|_RBRACKET)
+shape_element: (QUALNAME|NUMBER|_ELLIPSIS) [[_MINUS|_PLUS] NUMBER]
+type_qualifier: OF (ARRAYS|ARRAYLIKE)
+              | OF [NUMBER] type 
+              | [OF] DTYPE [_EQUALS] (basic_type | QUALNAME) [TYPE]
+              | _LBRACKET type _RBRACKET
+              | _LPAREN type _RPAREN
+basic_type.2: ANY 
+            | [POSITIVE|NEGATIVE] INT [_GRTRTHAN NUMBER]
+            | STR 
+            | [POSITIVE|NEGATIVE] FLOAT [IN _LBRACKET NUMBER _COMMA NUMBER _RBRACKET] [_GRTRTHAN NUMBER]
+            | BOOL
+            | [NUMPY] SCALAR [VALUE]
+            | COMPLEX [SCALAR]
+            | OBJECT
+            | FILELIKE
+            | PATHLIKE
+            | [NUMPY] DTYPE
+callable_type: CALLABLE [_LBRACKET [_LBRACKET type_list _RBRACKET _COMMA] type _RBRACKET]
+class_type: [CLASSMARKER] class_specifier [INSTANCE|OBJECT]
+        | class_specifier [_COMMA|_LPAREN] OR SUBCLASS [_RPAREN]
+        | class_specifier [_COMMA|_LPAREN] OR class_specifier[_RPAREN]
+class_specifier: [A|AN] (INSTANCE|CLASS|SUBCLASS) OF QUALNAME 
+        | [A|AN] QUALNAME (INSTANCE|CLASS|SUBCLASS)
+        | [A|AN] QUALNAME [_COMMA|_LPAREN] OR [A|AN|ANOTHER] SUBCLASS [OF QUALNAME][_RPAREN]
+        | [A|AN] QUALNAME [_COLON QUALNAME] [_MINUS LIKE]
+dict_type: (MAPPING|DICT) (OF|FROM) (basic_type|qualname) [(TO|_ARROW) (basic_type|qualname)] 
+         | (MAPPING|DICT) [_LBRACKET type _COMMA type _RBRACKET]
+filelike_type: [READABLE|WRITABLE] FILELIKE [TYPE]
+generator_type: GENERATOR [OF type]
+iterable_type: ITERABLE [(OF|OVER) type]
+         | ITERABLE _LPAREN type _RPAREN
+iterator_type: ITERATOR [(OF|OVER) type]
+         | ITERATOR _LPAREN type _RPAREN
+literal_type: STRING | NUMBER | NONE | TRUE | FALSE
+optional_type: OPTIONAL [_LBRACKET type _RBRACKET]
+restricted_type: [(ONE OF)| STR] _LBRACE (literal_type|STR) ((_COMMA|OR) (literal_type|STR|_ELLIPSIS))* _RBRACE [INT|BOOL]
+set_type: (FROZENSET|SET) _LBRACKET type _RBRACKET
+         | (FROZENSET|SET) [OF type_list]
+tuple_type: [shape] TUPLE [(OF|WITH) [NUMBER] type (OR type)*]
+          | [TUPLE] _LPAREN type (_COMMA type)* _RPAREN [PAIRS]
+          | [TUPLE] _LBRACKET type (_COMMA type)* _RBRACKET
+union_type: UNION _LBRACKET type (_COMMA type)* _RBRACKET 
+          | type (AND type)+
+          | [TUPLE] _LBRACE type (_COMMA type)* _RBRACE
+          | type (_PIPE type)*
+qualname.0: QUALNAME
+
+
+A.2:         &#34;a&#34;i
+AN.2:        &#34;an&#34;i
+AND.2:       &#34;and&#34;i
+ANOTHER.2:   &#34;another&#34;i
+ANY.2:       &#34;any&#34;i
+ARRAYLIKE.2: &#34;arraylike&#34;i | &#34;array-like&#34;i | &#34;array like&#34;i | &#34;array_like&#34;i | &#34;masked array&#34;i
+ARRAY.2:     &#34;array&#34;i
+ARRAYS.2:    &#34;arrays&#34;i
+AS.2:        &#34;as&#34;i
+AXES.2:      &#34;axes&#34;i
+BOOL.2:      &#34;bool&#34;i | &#34;bools&#34;i | &#34;boolean&#34;i | &#34;booleans&#34;i
+CALLABLE.2:  &#34;callable&#34;i | &#34;callables&#34;i | &#34;function&#34;i
+CLASS.2:     &#34;class&#34;i
+CLASSMARKER.2:&#34;:class:&#34;
+COLOR.2:     &#34;color&#34;i | &#34;colors&#34;i
+COMPLEX.2:   &#34;complex&#34;i
+DEFAULT.2:   &#34;default&#34;i
+DICT.2:      &#34;dict&#34;i | &#34;dictionary&#34;i | &#34;dictionaries&#34;i
+DTYPE.2:     &#34;dtype&#34;i
+FALSE.2:     &#34;false&#34;i
+FILELIKE.2:  &#34;file-like&#34;i | &#34;filelike&#34;i
+FLOAT.2:     &#34;float&#34; | &#34;floats&#34; | &#34;float32&#34;i | &#34;float64&#34;i
+FROM.2:      &#34;from&#34;i
+FROZENSET.2: &#34;frozenset&#34;i
+GENERATOR.2: &#34;generator&#34;i
+IN.2:        &#34;in&#34;i
+INSTANCE.2:  &#34;instance&#34;i
+INT.2:       &#34;int&#34;| &#34;ints&#34;|  &#34;integer&#34; | &#34;integers&#34; | &#34;int8&#34; | &#34;int16&#34; | &#34;int32&#34; | &#34;int64&#34; | &#34;uint8&#34;| &#34;uint16&#34; | &#34;uint32&#34; | &#34;uint64&#34;
+ITERABLE.2:  &#34;iterable&#34;i
+ITERATOR.2:  &#34;iterator&#34;i | &#34;iter&#34;i
+LENGTH.2:    &#34;length&#34;i
+LIKE.2:      &#34;like&#34;i
+LIST.2:      &#34;list&#34;i | &#34;list thereof&#34;i
+MAPPING.2:   &#34;mapping&#34;i
+MATPLOTLIB:  &#34;matplotlib&#34;i
+MATRIX.2:    &#34;matrix&#34;i | &#34;sparse-matrix&#34;i
+NDARRAY.2:   &#34;ndarray&#34;i | &#34;ndarrays&#34;i | &#34;nd-array&#34;i | &#34;numpy array&#34;i | &#34;np.array&#34;i | &#34;numpy.ndarray&#34;i
+NEGATIVE.2:  &#34;negative&#34;i
+NONE.2:      &#34;none&#34;i
+NUMPY.2:     &#34;numpy&#34;i
+OBJECT.2:    &#34;object&#34;i | &#34;objects&#34;i
+OF.2:        &#34;of&#34;i
+ONE.2:       &#34;one&#34;i
+ONED.2:      &#34;1-d&#34;i | &#34;1d&#34;i | &#34;one-dimensional&#34;i
+OPTIONAL.2:  &#34;optional&#34;i
+OR.2:        &#34;or&#34;i
+OVER.2:      &#34;over&#34;i
+PAIRS.2:     &#34;pairs&#34;i
+PATHLIKE.2:  &#34;path-like&#34;i | &#34;pathlike&#34;i
+POSITIVE.2:  &#34;positive&#34;i | &#34;non-negative&#34;i | &#34;nonnegative&#34;i
+PRIVATE.2:   &#34;private&#34;i
+READABLE.2:  &#34;readable&#34;i | &#34;readonly&#34;i | &#34;read-only&#34;i
+RETURNS.2:   &#34;returns&#34;i
+SAME.2:      &#34;same&#34;i
+SCALAR.2:     &#34;scalar&#34;i
+SEQUENCE.2:  &#34;sequence&#34;i | &#34;sequence thereof&#34;i
+SET.2:       &#34;set&#34;i
+SHAPE.2:     &#34;shape&#34;i
+SIZE.2:      &#34;size&#34;i
+SPARSE.2:    &#34;sparse&#34;i
+STR.2:       &#34;str&#34;i | &#34;string&#34;i | &#34;strings&#34;i | &#34;python string&#34;i | &#34;python str&#34;i
+SUBCLASS.2:  &#34;subclass&#34;i | &#34;subclass thereof&#34;i
+THREED.2:    &#34;3-d&#34;i | &#34;3d&#34;i | &#34;three-dimensional&#34;i
+TO.2:        &#34;to&#34;i
+TRUE.2:      &#34;true&#34;i
+TUPLE.2:     &#34;tuple&#34;i | &#34;2-tuple&#34;i | &#34;2 tuple&#34;i | &#34;3-tuple&#34;i | &#34;3 tuple&#34;i | &#34;4-tuple&#34; | &#34;4 tuple&#34; | &#34;tuple thereof&#34;i
+TWOD.2:      &#34;2-d&#34;i | &#34;2d&#34;i | &#34;two-dimensional&#34;i
+TYPE.2:      &#34;type&#34;i
+UNION.2:     &#34;union&#34;i
+VALUE.2:     &#34;value&#34;i
+WITH.2:      &#34;with&#34;i
+WRITABLE.2:  &#34;writeable&#34;i | &#34;writable&#34;i
+_ARROW:     &#34;-&gt;&#34;
+_ASTERISK:  &#34;*&#34;
+_BACKTICK:  &#34;`&#34;
+_C_CONTIGUOUS: &#34;C-contiguous&#34;i
+_COLON:    &#34;:&#34;
+_COMMA:    &#34;,&#34;
+_DIM:      &#34;0-d&#34;i | &#34;1-d&#34;i | &#34;2-d&#34;i | &#34;3-d&#34;i | &#34;1d&#34;i | &#34;2d&#34;i | &#34;3d&#34;i
+_ELLIPSIS: &#34;...&#34;
+_EQUALS:   &#34;=&#34;
+_GRTRTHAN:  &#34;&gt;&#34;
+_LBRACE:   &#34;{&#34;
+_LBRACKET:  &#34;[&#34;
+_LESSTHAN:  &#34;&lt;&#34;
+_LPAREN:    &#34;(&#34;
+_MINUS:     &#34;-&#34;
+_NEWLINE:   &#34;\n&#34;
+_PIPE:      &#34;|&#34;
+_PLURAL:    &#34;\\s&#34;
+_PLUS:      &#34;+&#34;
+_PERIOD:   &#34;.&#34;
+_PRIVATE:  &#34;private&#34;
+_RBRACE:   &#34;}&#34;
+_RBRACKET:  &#34;]&#34;
+_RPAREN:    &#34;)&#34;
+_SLASH:     &#34;/&#34;
+_STRIDED:   &#34;strided&#34;i
+_SUCH:      &#34;such&#34;
+_THE:       &#34;the&#34;
+_TILDE:     &#34;~&#34;
+_X:         &#34;x&#34;
+NAME:      /[A-Za-z_][A-Za-z0-9_\-]*/
+NUMBER:    /-?[0-9][0-9\.]*e?\-?[0-9]*/
+QNAME:  /\.?[A-Za-z_][A-Za-z_0-9\-]*(\.[A-Za-z_.][A-Za-z0-9_\-]*)*/
+QUALNAME:  QNAME | MATPLOTLIB AXES | MATPLOTLIB COLOR
+STRINGSQ:  /\&#39;[^\&#39;]*\&#39;/
+STRINGDQ:  /\&#34;[^\&#34;]*\&#34;/
+STRING:    STRINGSQ | STRINGDQ
+%import common.WS
+%ignore WS
+%ignore _ASTERISK
+%ignore _BACKTICK
+%ignore _C_CONTIGUOUS
+%ignore _PLURAL
+%ignore _PRIVATE
+%ignore _STRIDED
+%ignore _SUCH
+%ignore _THE
+%ignore _TILDE
+</code></pre><p>Once I get an AST out of this, I can walk it with vistors to generate the formal types. I do that with this <code>Normalizer</code> class. I can largely ignore some
+ugly parts of the tree, like <code>shape</code>:</p><pre tabindex=0><code>class Normalizer(Interpreter):
+    def configure(self, module:str|None, classes: dict|None, is_param:bool):
+        if module is None:
+            module = &#39;&#39;
+        x = module.find(&#39;.&#39;)
+        if x &gt;= 0:
+            self._tlmodule = module[:x]  # top-level module
+        else:
+            self._tlmodule = module
+        self._module = module
+        self._classes = classes
+        self._is_param = is_param
+
+    def handle_qualname(self, name: str, imports: set) -&gt; str:
+        return name
+    
+    def start(self, tree) -&gt; tuple[str, set[str]|None]:
+        result = self.visit(tree.children[0])
+        return result
+        
+    def type_list(self, tree) -&gt; tuple[str, set[str]|None]:
+        types = [] # We want to preserve order so don&#39;t use a set
+        imports = set()
+        literals = []
+        has_none = False
+        for child in tree.children:
+            if isinstance(child, Tree):
+                result = self._visit_tree(child)
+                if result:
+                    if result[0] == &#39;None&#39;:
+                        has_none = True
+                        continue
+                    if result[0].startswith(&#39;Literal:&#39;):
+                        literals.append(result[0][8:])
+                    else:
+                        type = result[0]
+                        if type not in types:
+                            types.append(type)
+                    if result[1]:
+                        imports.update(result[1])
+
+        if not imports:
+            imports = None
+        if literals:
+            type = &#39;Literal[&#39; + &#39;,&#39;.join(literals) + &#39;]&#39;
+            if type not in types:
+                types.append(type)
+        if has_none:
+            type = &#39;None&#39;
+            if type not in types:
+                types.append(type)
+        type = &#39;|&#39;.join(types)
+        return type, imports
+
+    def type(self, tree)-&gt; tuple[str, set[str]|None]:
+        for child in tree.children:
+            if isinstance(child, Tree):
+                result = self._visit_tree(child)
+                if result:
+                    return result
+        assert(False)
+
+    _basic_types = {
+        &#39;ANY&#39;: &#39;Any&#39;,
+        &#39;INT&#39;: &#39;int&#39;,
+        &#39;STR&#39; : &#39;str&#39;,
+        &#39;FLOAT&#39;: &#39;float&#39;,
+        &#39;BOOL&#39;: &#39;bool&#39;,
+        &#39;SCALAR&#39;: &#39;Scalar&#39;,
+        &#39;COMPLEX&#39;: &#39;complex&#39;,
+        &#39;OBJECT&#39;: &#39;Any&#39;,
+        &#39;PATHLIKE&#39;: &#39;PathLike&#39;,
+        &#39;FILELIKE&#39;: &#39;FileLike&#39;
+    }
+
+    def array_type(self, tree):
+        arr_types = set()
+        elt_type = None
+        imports = set()
+        for child in tree.children:
+            if isinstance(child, Token) and (child.type == &#39;NDARRAY&#39; or child.type == &#39;NUMPY&#39;):
+                arr_types.add(&#39;NDArray&#39;)
+                imports.add((&#39;NDArray&#39;, &#39;numpy.typing&#39;))
+            if isinstance(child, Tree) and isinstance(child.data, Token):
+                tok = child.data
+                subrule = tok.value
+                if subrule == &#39;array_kinds&#39;:
+                    types, imp = self._visit_tree(child)
+                    arr_types.update(types)
+                    imports.update(imp)
+                elif subrule == &#39;array_kind&#39;:
+                    type, imp = self._visit_tree(child)
+                    arr_types.add(type)
+                    imports.update(imp)
+                elif subrule == &#39;basic_type&#39; or subrule == &#39;type_qualifier&#39;:
+                    elt_type, imp = self._visit_tree(child)
+                    imports.update(imp)
+        if elt_type:
+            if self._is_param and &#39;list&#39; in arr_types:
+                arr_types.add(&#39;Sequence&#39;)
+                arr_types.remove(&#39;list&#39;)
+                imports.add((&#39;Sequence&#39;, &#39;typing&#39;))
+            return &#39;|&#39;.join([f&#39;{typ}[{elt_type}]&#39; for typ in arr_types]), imports
+        else:
+            return &#39;|&#39;.join(arr_types), imports
+
+    def array_kinds(self, tree):
+        imports = set()
+        types = set()
+        for child in tree.children:
+            if isinstance(child, Tree):
+                type, imp = self._visit_tree(child)
+                imports.update(imp)
+                types.add(type)
+        return types, imports
+
+    def array_kind(self, tree):
+        arr_type = &#39;&#39;
+        imports = set()
+        for child in tree.children:
+            if isinstance(child, Token):
+                if child.type == &#39;NDARRAY&#39;:
+                    arr_type = &#39;NDArray&#39;
+                    imports.add((&#39;NDArray&#39;, &#39;numpy.typing&#39;))
+                elif self._is_param or child.type == &#39;ARRAYLIKE&#39;:
+                    arr_type = &#39;ArrayLike&#39;
+                    imports.add((&#39;ArrayLike&#39;, &#39;typing&#39;))
+                elif child.type == &#39;LIST&#39;:
+                    arr_type = &#39;list&#39;
+                elif child.type == &#39;SEQUENCE&#39;:
+                    arr_type = &#39;Sequence&#39;
+                    imports.add((&#39;Sequence&#39;, &#39;typing&#39;))
+                else:
+                    continue
+                break
+
+        if not arr_type:
+            arr_type = &#39;NDArray&#39;
+            imports.add((&#39;NDArray&#39;, &#39;numpy.typing&#39;))
+
+        return arr_type, imports
+
+    def type_qualifier(self, tree):
+        imports = set()
+        for child in tree.children:
+            if isinstance(child, Tree):
+                return self._visit_tree(child)
+            elif isinstance(child, Token):
+                if child.type == &#39;QUALNAME&#39;:
+                    type = self.handle_qualname(child.value, imports)
+                    return type, imports
+        # OF ARRAYS falls through here
+        imports.add((&#39;ArrayLike&#39;, &#39;numpy.typing&#39;))
+        return &#39;ArrayLike&#39;, imports
+
+    def basic_type(self, tree) -&gt; tuple[str, set[str]|None]:
+        imports = set()
+        for child in tree.children:
+            if isinstance(child, Token):
+                if child.type == &#39;ANY&#39;:
+                    imports.add((&#39;Any&#39;, &#39;typing&#39;))
+                    return &#39;Any&#39;, imports
+                elif child.type == &#39;SCALAR&#39;:
+                    imports.add((&#39;Scalar&#39;, f&#39;{self._tlmodule}._typing&#39;))
+                    return &#39;Scalar&#39;, imports
+                elif child.type == &#39;PATHLIKE&#39;:
+                    imports.add((&#39;PathLike&#39;, &#39;os&#39;))
+                elif child.type == &#39;FILELIKE&#39;:
+                    imports.add((&#39;IO&#39;, &#39;typing&#39;))
+                    return &#39;IO&#39;, imports
+                if child.type in self._basic_types:
+                    return self._basic_types[child.type], imports
+
+        assert(False)
+
+    def callable_type(self, tree):
+        # TODO: handle signature
+        imports = set()
+        imports.add((&#39;Callable&#39;, &#39;typing&#39;))
+        return &#34;Callable&#34;, imports
+
+    def class_type(self, tree):
+        cname = &#39;&#39;
+        for child in tree.children:
+            if isinstance(child, Tree):
+                return self._visit_tree(child)
+        assert(False)
+        
+    def class_specifier(self, tree):
+        imp = set()
+        cname = &#39;&#39;
+        for child in tree.children:
+            if isinstance(child, Token) and child.type == &#39;QUALNAME&#39;:
+                cname = child.value
+        # Now we need to normalize the name and find the imports
+        x = cname.rfind(&#39;.&#39;)
+        if x &gt; 0:
+            imp.add((cname[x+1:], cname[:x]))
+            cname = cname[x+1:]
+        elif self._classes and cname in self._classes:
+            imp.add((cname, self._classes[cname]))
+
+        return cname, imp
+
+    def dict_type(self, tree):
+        dict_type = &#39;&#39;
+        from_type = None
+        to_type = None
+        imports = set()
+        for child in tree.children:
+            if isinstance(child, Token):
+                if child.type == &#39;MAPPING&#39;:
+                    dict_type = &#39;Mapping&#39;
+                    imports.add((&#39;Mapping&#39;, &#39;typing&#39;))
+                elif child.type == &#39;DICT&#39;:
+                    dict_type = &#39;dict&#39;
+                elif child.type == &#39;QUALNAME&#39;:
+                    to_type = self.handle_qualname(child.value, imports)
+                    if from_type is None:
+                        from_type = to_type
+            elif isinstance(child, Tree):
+                to_type, imp = self._visit_tree(child)
+                if imp:
+                    imports.update(imp)
+                if from_type is None:
+                    from_type = to_type
+
+        if from_type is not None:
+            dict_type += f&#39;[{from_type}, {to_type}]&#39;
+
+        return dict_type, imports
+
+    
+    def qualname(self, tree):
+        for child in tree.children:
+            if isinstance(child, Token):
+                imports = set()
+                return self.handle_qualname(child.value, imports), imports
+            
+
+    def filelike_type(self, tree):
+        imports = set()
+        imports.add((&#39;FileLike&#39;, f&#39;{self._tlmodule}._typing&#39;))
+        return &#39;FileLike&#39;, imports
+
+    def generator_type(self, tree):
+        imports = set()
+        imports.add((&#39;Generator&#39;, &#39;collections.abc&#39;))
+        for child in tree.children:
+            if isinstance(child, Tree):
+                type, imp = self._visit_tree(child)
+                if type:
+                    imports.update(imp)
+                    return f&#39;Generator[{type}, None, None]&#39;, imports
+        return &#39;Generator&#39;, imports
+
+    def iterable_type(self, tree):
+        imports = set()
+        imports.add((&#39;Iterable&#39;, &#39;collections.abc&#39;))
+        for child in tree.children:
+            if isinstance(child, Tree):
+                type, imp = self._visit_tree(child)
+                if type:
+                    imports.update(imp)
+                    return f&#39;Iterable[{type}]&#39;, imports
+        return &#39;Iterable&#39;, imports
+    
+    def iterator_type(self, tree):
+        imports = set()
+        imports.add((&#39;Iterator&#39;, &#39;collections.abc&#39;))
+        for child in tree.children:
+            if isinstance(child, Tree):
+                type, imp = self._visit_tree(child)
+                if type:
+                    imports.update(imp)
+                    return f&#39;Iterator[{type}]&#39;, imports
+        return &#39;Iterator&#39;, imports
+    
+    def literal_type(self, tree)-&gt; tuple[str, set[str]|None]:
+        imports = set()
+        imports.add((&#39;Literal&#39;, &#39;typing&#39;))
+        assert(len(tree.children) == 1 and isinstance(tree.children[0], Token))
+        tok = tree.children[0]
+        type = tok.type
+        if type == &#39;STRING&#39; or type == &#39;NUMBER&#39;:
+            return f&#39;Literal:&#39; + tok.value, imports
+        if type == &#39;NONE&#39;:
+            return &#39;None&#39;, set()
+        if type == &#39;TRUE&#39;:
+            return &#39;Literal:True&#39;, imports
+        if type == &#39;FALSE&#39;:
+            return &#39;Literal:False&#39;, imports
+        assert(False)
+
+    def optional_type(self, tree):
+        for child in tree.children:
+            if isinstance(child, Tree):
+                type, imports = self._visit_tree(child)
+                type += &#39;|None&#39;
+                return type, imports
+        return &#39;None&#39;, set()
+
+    def restricted_type(self, tree):
+        imp = set()
+        types = []
+        values = []
+        rtn = &#39;&#39;
+        for child in tree.children:
+            if isinstance(child, Tree):
+                type, imports = self._visit_tree(child)
+                imp.update(imports)
+                if type.startswith(&#39;Literal:&#39;):
+                    values.append(type[8:])
+                else:
+                    types.append(&#39;None&#39;)
+            elif isinstance(child, Token) and child.type == &#39;STR&#39;:
+                types.append(&#39;str&#39;)
+        if values:
+            types.append(f&#39;Literal[{&#34;,&#34;.join(values)}]&#39;)
+            imp.add((&#39;Literal&#39;, &#39;typing&#39;))
+        return &#39;|&#39;.join(types), imp
+
+    def set_type(self, tree):
+        set_type = None
+        elt_type = None
+        imports = set()
+        for child in tree.children:
+            if isinstance(child, Token):
+                if child.type == &#39;SET&#39;:
+                    set_type = &#39;set&#39;
+                elif child.type == &#39;FROZENSET&#39;:
+                    set_type = &#39;frozenset&#39;
+            elif isinstance(child, Tree):
+                elt_type, imports = self._visit_tree(child)
+
+        if elt_type:
+            set_type += &#39;[&#39; + elt_type + &#39;]&#39;
+
+        return set_type, imports
+
+    def tuple_type(self, tree):
+        types = []
+        imp = set()
+        repeating = False
+        count = 1
+        has_shape = False
+        for child in tree.children:
+            if isinstance(child, Tree):
+                type, imports = self._visit_tree(child)
+                if type is None:
+                    has_shape = True
+                else:
+                    types.append(type)
+                    imp.update(imports)
+            elif isinstance(child, Token) and child.type in [&#39;OF&#39;, &#39;WITH&#39;]:
+                repeating = True
+            elif isinstance(child, Token) and child.type == &#39;NUMBER&#39;:
+                count = int(child.value)
+        if has_shape:
+            return &#39;tuple&#39;, None
+        if types:
+            if repeating:
+                if count &gt; 1:
+                    types = [&#34;|&#34;.join(types)] * count
+                else:
+                    return f&#39;tuple[{&#34;|&#34;.join(types)}, ...]&#39;, imp
+            
+            return f&#39;tuple[{&#34;,&#34;.join(types)}]&#39;, imp
+        return &#39;tuple&#39;, None
+
+    def union_type(self, tree):
+        types = set()
+        imports = set()
+        for child in tree.children:
+            if isinstance(child, Tree):
+                type, imp = self._visit_tree(child)
+                types.add(type)
+                imports.update(imp)
+        return &#39;|&#39;.join(types), imports
+    
+    def shape(self, tree):
+        return None, None
+    
+</code></pre><p>There is basically one Python method for each of the grammar rules. The methods return a Python type annotation as a string, and a set of imports that
+may need to be added to the file for that annotation to be usable (e.g. if a type has <code>Sequence</code> in it, the imports need to record that we need to import
+<code>Sequence</code> from <code>typing</code>). It&rsquo;s up to each method/node to decide whether or not it wants to walk through its children, and how to handle the result.</p><p>Let&rsquo;s look at a simple example, <code>optional_type</code>. The grammar rule is:</p><pre tabindex=0><code>optional_type: OPTIONAL [_LBRACKET type _RBRACKET]
+</code></pre><p>which says that we could have the word &ldquo;optional&rdquo; or something like &ldquo;optional [float]&rdquo;. The method is:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>    <span style=color:#ff79c6>def</span> <span style=color:#50fa7b>optional_type</span>(self, tree):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> child <span style=color:#ff79c6>in</span> tree<span style=color:#ff79c6>.</span>children:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>isinstance</span>(child, Tree):
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>type</span>, imports <span style=color:#ff79c6>=</span> self<span style=color:#ff79c6>.</span>_visit_tree(child)
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd;font-style:italic>type</span> <span style=color:#ff79c6>+=</span> <span style=color:#f1fa8c>&#39;|None&#39;</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>type</span>, imports
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#f1fa8c>&#39;None&#39;</span>, <span style=color:#8be9fd;font-style:italic>set</span>()
+</span></span></code></pre></div><p>Here we walk through the children, which are either going to be terminal nodes for tokens like the left and right brackets or the word optional, or a tree
+if there is a type specified (as that involves further parsing of rules). If we see a tree node for <code>type</code> we recursively visit it and get the type and
+imports for that, then add &lsquo;|None" on the end of the type before returning. If we find no child that is a tree, that means all we saw was &lsquo;optional&rsquo; and
+we just return &lsquo;None&rsquo;.</p><p>Other methods are similar; it&rsquo;s just the complexity that varies.</p><p>We wrap all this in a <code>parse_type</code> function:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>_lark <span style=color:#ff79c6>=</span> Lark(_grammar)
+</span></span><span style=display:flex><span>_norm <span style=color:#ff79c6>=</span>  _norm <span style=color:#ff79c6>=</span> Normalizer()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>parse_type</span>(s: <span style=color:#8be9fd;font-style:italic>str</span>, modname: <span style=color:#8be9fd;font-style:italic>str</span><span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>, classes: <span style=color:#8be9fd;font-style:italic>dict</span><span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>, is_param:<span style=color:#8be9fd;font-style:italic>bool</span><span style=color:#ff79c6>=</span><span style=color:#ff79c6>False</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>dict</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>list</span>[<span style=color:#8be9fd;font-style:italic>str</span>]]]:
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#34;&#34;&#34; Parse a type description from a docstring, returning the normalized
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>        type and the set of required imports, or None if no imports are needed.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>        tree <span style=color:#ff79c6>=</span> _lark<span style=color:#ff79c6>.</span>parse(s)
+</span></span><span style=display:flex><span>        _norm<span style=color:#ff79c6>.</span>configure(modname, classes, is_param)
+</span></span><span style=display:flex><span>        n <span style=color:#ff79c6>=</span> _norm<span style=color:#ff79c6>.</span>visit(tree)
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Collect, dedup and sort the imports</span>
+</span></span><span style=display:flex><span>        imps <span style=color:#ff79c6>=</span> {}
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> n[<span style=color:#bd93f9>1</span>]:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> imp <span style=color:#ff79c6>in</span> n[<span style=color:#bd93f9>1</span>]:
+</span></span><span style=display:flex><span>                what, where <span style=color:#ff79c6>=</span> imp
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> where <span style=color:#ff79c6>not</span> <span style=color:#ff79c6>in</span> imps:
+</span></span><span style=display:flex><span>                    imps[where] <span style=color:#ff79c6>=</span> []
+</span></span><span style=display:flex><span>                imps[where]<span style=color:#ff79c6>.</span>append(what)
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># Sort the imports for a module</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> where <span style=color:#ff79c6>in</span> imps<span style=color:#ff79c6>.</span>keys():
+</span></span><span style=display:flex><span>                imps[where] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>sorted</span>(imps[where])
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> n[<span style=color:#bd93f9>0</span>], imps
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>except</span> Exception <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> s, {}
+</span></span></code></pre></div><p>and then call that from our new <code>normalize_type</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>normalize_type</span>(s: <span style=color:#8be9fd;font-style:italic>str</span>, modname: <span style=color:#8be9fd;font-style:italic>str</span><span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>, classes: <span style=color:#8be9fd;font-style:italic>dict</span><span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>, is_param: <span style=color:#8be9fd;font-style:italic>bool</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>False</span>) <span style=color:#ff79c6>-&gt;</span> <span style=color:#8be9fd;font-style:italic>tuple</span>[<span style=color:#8be9fd;font-style:italic>str</span><span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span>, <span style=color:#8be9fd;font-style:italic>dict</span>[<span style=color:#8be9fd;font-style:italic>str</span>, <span style=color:#8be9fd;font-style:italic>list</span>[<span style=color:#8be9fd;font-style:italic>str</span>]]]:
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>try</span>:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> parse_type(remove_shape(s), modname, classes, is_param)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>except</span> Exception <span style=color:#ff79c6>as</span> e:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>None</span>, {}
+</span></span></code></pre></div><p>I rewrote <code>is_trivial</code> to be more strict; the new code is below:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>_basic_types <span style=color:#ff79c6>=</span> {
+</span></span><span style=display:flex><span>    <span style=color:#6272a4># Key: lower() version of type</span>
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;any&#39;</span>: <span style=color:#f1fa8c>&#39;Any&#39;</span>, 
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;array&#39;</span>: <span style=color:#f1fa8c>&#39;NDArray&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;arraylike&#39;</span>: <span style=color:#f1fa8c>&#39;NDArray&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;array-like&#39;</span>: <span style=color:#f1fa8c>&#39;NDArray&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;bool&#39;</span>: <span style=color:#f1fa8c>&#39;bool&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;bools&#39;</span>: <span style=color:#f1fa8c>&#39;bool&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;boolean&#39;</span>: <span style=color:#f1fa8c>&#39;bool&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;booleans&#39;</span>: <span style=color:#f1fa8c>&#39;bool&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;bytearray&#39;</span>: <span style=color:#f1fa8c>&#39;bytearray&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;callable&#39;</span>: <span style=color:#f1fa8c>&#39;Callable&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;complex&#39;</span>: <span style=color:#f1fa8c>&#39;complex&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;dict&#39;</span>: <span style=color:#f1fa8c>&#39;dict&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;dictionary&#39;</span>: <span style=color:#f1fa8c>&#39;dict&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;dictionaries&#39;</span>: <span style=color:#f1fa8c>&#39;dict&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;filelike&#39;</span>: <span style=color:#f1fa8c>&#39;FileLike&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;file-like&#39;</span>: <span style=color:#f1fa8c>&#39;FileLike&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;float&#39;</span>: <span style=color:#f1fa8c>&#39;float&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;floats&#39;</span>: <span style=color:#f1fa8c>&#39;float&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;frozenset&#39;</span>: <span style=color:#f1fa8c>&#39;frozenset&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;int&#39;</span>: <span style=color:#f1fa8c>&#39;int&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;ints&#39;</span>: <span style=color:#f1fa8c>&#39;int&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;iterable&#39;</span>: <span style=color:#f1fa8c>&#39;Iterable&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;list&#39;</span>: <span style=color:#f1fa8c>&#39;list&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;memoryview&#39;</span>: <span style=color:#f1fa8c>&#39;memoryview&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;ndarray&#39;</span>: <span style=color:#f1fa8c>&#39;np.ndarray&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;none&#39;</span>: <span style=color:#f1fa8c>&#39;None&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;object&#39;</span>: <span style=color:#f1fa8c>&#39;Any&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;objects&#39;</span>: <span style=color:#f1fa8c>&#39;Any&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;pathlike&#39;</span>: <span style=color:#f1fa8c>&#39;PathLike&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;path-like&#39;</span>: <span style=color:#f1fa8c>&#39;PathLike&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;range&#39;</span>: <span style=color:#f1fa8c>&#39;range&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;scalar&#39;</span>: <span style=color:#f1fa8c>&#39;Scalar&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;sequence&#39;</span>: <span style=color:#f1fa8c>&#39;Sequence&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;set&#39;</span>: <span style=color:#f1fa8c>&#39;set&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;str&#39;</span>: <span style=color:#f1fa8c>&#39;str&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;string&#39;</span>: <span style=color:#f1fa8c>&#39;str&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;strings&#39;</span>: <span style=color:#f1fa8c>&#39;str&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;tuple&#39;</span>: <span style=color:#f1fa8c>&#39;tuple&#39;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#39;tuples&#39;</span>: <span style=color:#f1fa8c>&#39;tuple&#39;</span>,
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>def</span> <span style=color:#50fa7b>is_trivial</span>(s, modname: <span style=color:#8be9fd;font-style:italic>str</span>, classes: <span style=color:#8be9fd;font-style:italic>set</span><span style=color:#ff79c6>|</span><span style=color:#8be9fd;font-style:italic>dict</span><span style=color:#ff79c6>|</span><span style=color:#ff79c6>None</span> <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>None</span>):
+</span></span><span style=display:flex><span>    <span style=color:#f1fa8c>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    Returns true if the docstring is trivially and unambiguously convertible to a 
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    type annotation, and thus need not be written to the map file for further
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    tweaking.
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    s - the type docstring to check
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    modname - the module name
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    classes - a set of class names or dictionary keyed on classnames 
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    s <span style=color:#ff79c6>=</span> s<span style=color:#ff79c6>.</span>strip()
+</span></span><span style=display:flex><span>    sl <span style=color:#ff79c6>=</span> remove_shape(s<span style=color:#ff79c6>.</span>lower())
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> sl<span style=color:#ff79c6>.</span>endswith(<span style=color:#f1fa8c>&#34; objects&#34;</span>):
+</span></span><span style=display:flex><span>        sl <span style=color:#ff79c6>=</span> sl[:<span style=color:#ff79c6>-</span><span style=color:#bd93f9>8</span>]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> sl <span style=color:#ff79c6>in</span> _basic_types:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4># Check if it&#39;s a string</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> sl <span style=color:#ff79c6>and</span> sl[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>==</span> sl[<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>and</span> (sl[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;&#34;&#39;</span> <span style=color:#ff79c6>or</span> sl[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>==</span><span style=color:#f1fa8c>&#34;&#39;&#34;</span>):
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> classes:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> s <span style=color:#ff79c6>in</span> classes <span style=color:#ff79c6>or</span> (_ident<span style=color:#ff79c6>.</span>match(s) <span style=color:#ff79c6>and</span> s<span style=color:#ff79c6>.</span>startswith(modname <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#39;.&#39;</span>)):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4># We have to watch out for ambiguous things like &#39;list of str or bool&#39;.</span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4># This is just a kludge to look for both &#39;of&#39; and &#39;or&#39; in the type and</span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4># reject it.</span>
+</span></span><span style=display:flex><span>    x1 <span style=color:#ff79c6>=</span> sl<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#39; of &#39;</span>)
+</span></span><span style=display:flex><span>    x2 <span style=color:#ff79c6>=</span> sl<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#39; or &#39;</span>)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> x1 <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>and</span> x2 <span style=color:#ff79c6>&gt;</span> x1:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>False</span>
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#6272a4># Handle tuples</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> sl<span style=color:#ff79c6>.</span>startswith(<span style=color:#f1fa8c>&#39;tuple&#39;</span>):
+</span></span><span style=display:flex><span>        sx <span style=color:#ff79c6>=</span> s[<span style=color:#bd93f9>5</span>:]<span style=color:#ff79c6>.</span>strip()
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#ff79c6>not</span> sx:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> sx[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>in</span> <span style=color:#f1fa8c>&#39;({[&#39;</span> <span style=color:#ff79c6>and</span> sx[<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>in</span> <span style=color:#f1fa8c>&#39;})]&#39;</span>:
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># TODO We should make sure there are no other occurences of these</span>
+</span></span><span style=display:flex><span>            <span style=color:#6272a4># A lot of this is getting to where we should go back to regexps.</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> is_trivial(sx[<span style=color:#bd93f9>1</span>:<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>], modname, classes)
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Strip off leading OF or WITH</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> sx<span style=color:#ff79c6>.</span>startswith (<span style=color:#f1fa8c>&#39;of &#39;</span>) <span style=color:#ff79c6>or</span> sx<span style=color:#ff79c6>.</span>startswith(<span style=color:#f1fa8c>&#39;with &#39;</span>):
+</span></span><span style=display:flex><span>            x <span style=color:#ff79c6>=</span> sx<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#39; &#39;</span>)
+</span></span><span style=display:flex><span>            sx <span style=color:#ff79c6>=</span> sx[x<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>:]<span style=color:#ff79c6>.</span>strip()
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Strip off a number</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> sx <span style=color:#ff79c6>and</span> sx[<span style=color:#bd93f9>0</span>]<span style=color:#ff79c6>.</span>isdigit():
+</span></span><span style=display:flex><span>            x <span style=color:#ff79c6>=</span> sx<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#39; &#39;</span>)
+</span></span><span style=display:flex><span>            sx <span style=color:#ff79c6>=</span> sx[x<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>:]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> is_trivial(sx, modname, classes):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> s1 <span style=color:#ff79c6>in</span> [s, s<span style=color:#ff79c6>.</span>replace(<span style=color:#f1fa8c>&#39;,&#39;</span>, <span style=color:#f1fa8c>&#39; or &#39;</span>)]:
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> splitter <span style=color:#ff79c6>in</span> [<span style=color:#f1fa8c>&#39; or &#39;</span>, <span style=color:#f1fa8c>&#39;|&#39;</span>]:
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> s1<span style=color:#ff79c6>.</span>find(splitter) <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span>:
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>all</span>([<span style=color:#8be9fd;font-style:italic>len</span>(c<span style=color:#ff79c6>.</span>strip())<span style=color:#ff79c6>==</span><span style=color:#bd93f9>0</span> <span style=color:#ff79c6>or</span> is_trivial(c<span style=color:#ff79c6>.</span>strip(), modname, classes) \
+</span></span><span style=display:flex><span>                        <span style=color:#ff79c6>for</span> c <span style=color:#ff79c6>in</span> s1<span style=color:#ff79c6>.</span>split(splitter)]):
+</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> s<span style=color:#ff79c6>.</span>find(<span style=color:#f1fa8c>&#39; of &#39;</span>) <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span>:
+</span></span><span style=display:flex><span>        <span style=color:#6272a4># Things like sequence of int, set of str, etc</span>
+</span></span><span style=display:flex><span>        parts <span style=color:#ff79c6>=</span> s<span style=color:#ff79c6>.</span>split(<span style=color:#f1fa8c>&#39; of &#39;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> <span style=color:#8be9fd;font-style:italic>len</span>(parts) <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>2</span> <span style=color:#ff79c6>and</span> is_trivial(parts[<span style=color:#bd93f9>0</span>], modname, <span style=color:#ff79c6>None</span>) <span style=color:#ff79c6>and</span> is_trivial(parts[<span style=color:#bd93f9>1</span>], modname, classes):
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>True</span>
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>    <span style=color:#6272a4># Handle restricted values in {}</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> s<span style=color:#ff79c6>.</span>startswith(<span style=color:#f1fa8c>&#39;{&#39;</span>) <span style=color:#ff79c6>and</span> s<span style=color:#ff79c6>.</span>endswith(<span style=color:#f1fa8c>&#39;}&#39;</span>):
+</span></span><span style=display:flex><span>        parts <span style=color:#ff79c6>=</span> s[<span style=color:#bd93f9>1</span>:<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>.</span>split(<span style=color:#f1fa8c>&#39;,&#39;</span>)
+</span></span><span style=display:flex><span>        parts <span style=color:#ff79c6>=</span> [p<span style=color:#ff79c6>.</span>strip() <span style=color:#ff79c6>for</span> p <span style=color:#ff79c6>in</span> parts]
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>all</span>([is_trivial(p, modname, <span style=color:#ff79c6>None</span>) <span style=color:#ff79c6>for</span> p <span style=color:#ff79c6>in</span> parts])
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>False</span>
+</span></span></code></pre></div><p>I wasn&rsquo;t proud of the old one, and this one is kinda yucky too, but it is working and I haven&rsquo;t noticed any false positives at least.</p><p>With these changes I was able to generate stubs for sklearn and SciPy. But I am going further, back to where I first started, and bringing in
+monkeytype tracing to both validate the types I have in the map files, and to fill in gaps where there are no docstrings. I&rsquo;ll talk about that
+in the next post.</p><hr><ul class=pager><li class=previous><a href=/post/creating-type-stubs-for-scientific-python-part-3/ data-toggle=tooltip data-placement=top title="Creating Type Stubs for Scientific Python (Part 3)">&larr;
+Previous Post</a></li></ul></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>SECTIONS</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/data-science title=data-science>data-science</a>
+<a href=/tags/jupyter title=jupyter>jupyter</a>
+<a href=/tags/management title=management>management</a>
+<a href=/tags/pandas title=pandas>pandas</a>
+<a href=/tags/programming title=programming>programming</a>
+<a href=/tags/psychology title=psychology>psychology</a>
+<a href=/tags/python title=python>python</a></div></section><section><hr><h5>FRIENDS</h5><ul class=list-inline><li><a target=_blank href=https://snarky.ca/author/brett/>Brett Cannon</a></li><li><a target=_blank href=http://journal.stuffwithstuff.com/>Bob Nystrom</a></li></ul></section></div></div></div></article><script type=text/javascript src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script src=https://utteranc.es/client.js repo=gramster/gramster.github.io issue-term=pathname theme=github-light crossorigin=anonymous async></script><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a href=https://twitter.com/gramnix><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-twitter fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://github.com/gramster><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://www.linkedin.com/in/grahamwheeler><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-linkedin fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://stackoverflow.com/users/968133><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-stack-overflow fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Graham Wheeler's Random Forest"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Graham Wheeler's Random Forest 2022<br><a href=https://themes.gohugo.io/hugo-theme-cleanwhite>CleanWhite Hugo Theme</a> by <a href=https://zhaohuabing.com>Huabing</a> |
+<iframe style=margin-left:2px;margin-bottom:-5px frameborder=0 scrolling=0 width=100px height=20px src="https://ghbtns.com/github-btn.html?user=zhaohuabing&repo=hugo-theme-cleanwhite&type=star&count=true"></iframe></p></div></div></div></footer><script>function loadAsync(e,t){var s=document,o="script",n=s.createElement(o),i=s.getElementsByTagName(o)[0];n.src=e,t&&n.addEventListener("load",function(e){t(null,e)},!1),i.parentNode.insertBefore(n,i)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,a=$(_containerSelector),r=a.find("h1,h2,h3,h4,h5,h6");return $(e).html(""),r.each(function(){t=$(this).prop("tagName").toLowerCase(),o="#"+$(this).prop("id"),n=$(this).text(),i=$('<a href="'+o+'" rel="nofollow">'+n+"</a>"),s=$('<li class="'+t+'_nav"></li>').append(i),$(e).append(s)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>

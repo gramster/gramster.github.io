@@ -290,7 +290,7 @@ STRING:    STRINGSQ | STRINGDQ
 Once I get an AST out of this, I can walk it with vistors to generate the formal types. I do that with this `Normalizer` class. I can largely ignore some
 ugly parts of the tree, like `shape`:
 
-```
+```python
 class Normalizer(Interpreter):
     def configure(self, module:str|None, classes: dict|None, is_param:bool):
         if module is None:

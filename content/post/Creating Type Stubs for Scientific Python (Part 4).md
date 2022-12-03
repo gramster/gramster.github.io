@@ -5,6 +5,7 @@ author: Graham Wheeler
 category: Programming
 comments: enabled
 ---
+
 ## The Story Thus Far
 
 Its been a while since the last post, mainly because I hit a speed bump along the way, which I have since addressed. It's worth recapping what was covered

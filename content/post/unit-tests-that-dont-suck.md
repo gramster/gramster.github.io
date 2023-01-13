@@ -10,6 +10,12 @@ link:
 description: 
 ---
 
+## tl;dr
+
+This is a long post. I think its valuable reading, but I can also sum up my recommendations as:
+
+_Build good but narrow APIs that are the public contracts for your code. Focus your tests on these. Don't bother testing at the level of methods, classes, etc, except insofar as these represent the public APIs, with the exception of complex algorithms that may need particular attention._
+
 ## Introduction
 
 This post is based on a talk I gave to my team in an effort to establish a common approach to thinking about unit tests. The existing code base we had suffered from a number of problems relating to how tests were being written; despite good intentions, it can be easy to do testing badly. In particular, here are some of the things I observed:
@@ -134,13 +140,16 @@ Acceptance tests ideally exercise the system end-to-end without directly calling
 - integrate and package the system, and perform a production-like deployment into a realistic environment
 - exercise the system through its external access points to run the acceptance tests for completed functionality
 
-TDD is a useful practice because:
+TDD can be a useful practice because:
 
 - writing tests first is a *design activity* that clarifies acceptance criteria, encourages loose coupling, adds an executable specification of the code's purpose, all while adding to the regression suite and letting us know when we have done enough (YAGNI);
 - developers are often bad at writing sufficient quality tests after the code is written and apparently working, and writing them afterwards accrues only a few of the above benefits.
 
 In addition,  for the very first acceptance test, we must have implemented a whole automated build, deploy, and test cycle. This is a lot of work to do before we can even see our first test fail, but deploying and testing right from the start of a project forces the team to understand how their system fits into the world. It flushes out the “unknown unknown” technical and organizational risks so they can be addressed while there’s still time (see also )
 
+That said, TDD is time-consuming, can lead to an overabundance of tests that outlive their usefulness, and doesn't protect you from most of the pitfalls 
+outlined in this post. Persoanlly, I occasionally find it useful but more as an incremental/iterative design activity to clarify my thinking; I don't 
+do it a lot and I usually clean up or get rid of a lot of the tests I produce afterwards.
 
 ## The Testing Schools - Classic vs "London"
 
@@ -341,6 +350,14 @@ Questions to ask when reviewing code:
 
 
 ## Further Reading
+
+Probably the most important read is from James Coplien:
+
+- [Why Most Unit Testing is Waste](https://rbcs-us.com/documents/Why-Most-Unit-Testing-is-Waste.pdf)
+
+I think its a farily extreme position, but largely accurate in describing the net effect of bad testing practices.
+
+Other useful reads:
 
 - Flaky tests at Google and how we mitigate them - Google - [https://testing.googleblog.com/2016/05/flaky-tests-at-google-and-how-we.html](https://testing.googleblog.com/2016/05/flaky-tests-at-google-and-how-we.html) (lots more good stuff at [https://testing.googleblog.com/](https://testing.googleblog.com/))
 - Mocks aren't Stubs - Martin Fowler - [https://martinfowler.com/articles/mocksArentStubs.html](https://martinfowler.com/articles/mocksArentStubs.html) - good discussion of the two schools and other topics

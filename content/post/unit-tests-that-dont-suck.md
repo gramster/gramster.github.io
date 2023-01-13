@@ -1,6 +1,6 @@
 ---
-title: Unit Tests that Don't Suck
-slug: unit-tests-that-dont-suck
+title: Tests that Don't Suck
+slug: tests-that-dont-suck
 date: 2021-06-26T16:19:57
 tags:
   - Programming
@@ -14,11 +14,12 @@ description:
 
 This is a long post. I think its valuable reading, but I can also sum up my recommendations as:
 
-_Build good but narrow APIs that are the public contracts for your code. Focus your tests on these. Don't bother testing at the level of methods, classes, etc, except insofar as these represent the public APIs, with the exception of complex algorithms that may need particular attention._
+_Build good but narrow APIs that are the public contracts for your code. Focus your tests on these. Don't focus on testing at the level of methods, classes, etc, except insofar as these represent the public APIs, with the exception of complex algorithms that may need particular attention._
 
 ## Introduction
 
-This post is based on a talk I gave to my team in an effort to establish a common approach to thinking about unit tests. The existing code base we had suffered from a number of problems relating to how tests were being written; despite good intentions, it can be easy to do testing badly. In particular, here are some of the things I observed:
+This post is based on a talk I gave to my team in an effort to establish a common approach to thinking about automated tests: specifically those we would have labeled as 'unit tests'.
+The existing code base we had suffered from a number of problems relating to how tests were being written; despite good intentions, it can be easy to do testing badly. In particular, here are some of the things I observed:
 
 - a massive overuse of dependency injection: pretty much all dependencies of all classes were being set up using DI. I believe this was related to the next point about the overuse of mocks. DI is certainly useful, especially when wiring up a high-level architecture, but it does not need to be used for everything;
 - a massive overuse of mocking. This was the main problem I observed. I went so far as to write a simple Python script to generate some metrics around this, and in the most egregious cases I found tests that had over 60 mocked classes being created. At that level it is very difficult to even know what is being tested; are you just testing that your mocks exhibit the behavior you specified in the mocks? What real behavior is being tested?
@@ -34,7 +35,7 @@ As a result, writing tests was hard, code reviews could be acrimonious, the desi
 
 If we want to sustain velocity, including in the face of changing requirements, we need to:
 
-- avoid regressions and wasting time on finding bugs in existing code - so we need to be able to detect regressions quickly and pinpoints their origin accurately
+- avoid regressions and wasting time on finding bugs in existing code - so we need to be able to detect regressions quickly and pinpoint their origin accurately
 - not accrue large amounts of technical debt, but instead keep our code simple to understand and modify. We need confidence that continuous refactoring is not going to break functionality, and tests can provide that confidence.
    
 In addition:
@@ -55,23 +56,25 @@ What value were these tests?
 
 The tests in these scenarios had the opposite effect of what good tests should have:
 
-- they were unclear in intent, and drained productivity and morale as they were hard to read and understand
-- they did not help to improve the design of the system
 - they failed to find any actual bugs
 - they were brittle - they failed as a result of an unrelated change that didn't introduce new bugs
 - they were unreliable
+- they were unclear in intent, and drained productivity and morale as they were hard to read and understand
+- they did not help to improve the design of the system
 
-Such tests are all cost with no benefit. Much of this post is about recognize good vs bad tests to avoid these kinds of situations. But we'll start with an overview of testing in general with a particular focus on unit tests.
+Such tests are all cost with no benefit. In fact, in the second scenario, deleting the tests would arguably have been the better resolution. 
+
+Much of this post is about recognizing good vs bad tests to avoid these kinds of situations. But we'll start with an overview of testing in general with a particular focus on unit tests.
 
 ## Unit Tests
 
 A unit test is an automated test (of a *system under test* or SUT) that:
 
-- verifies a single unit (of behavior or of code; see schools)
+- verifies a single 'unit' (what 'unit' means can vary; it's usually a unit of behavior or of code; see schools discussion later)
 - executes fast
 - and in isolation from other tests (so you can run/rerun tests individually in any order)
 
-Isolation is achieved with the help of *test doubles*.
+Isolation is achieved both through good design (low coupling; stateless functions; ...) and with the help of *test doubles*, which we'll discuss in detail below.
 
 Unit tests have a 3-part structure:   
 
@@ -89,11 +92,11 @@ Unit tests can be good or bad. We've seen examples above already of bad tests. T
 |---|---|
 | Automatic | Manual (not always bad) |
 | Reliable | Flaky |
-| Fast to execute | Slow to execute |
+| Fast | Slow |
 | Clear (useful as documentation) | Hard to understand |
-| Tests high-value code | Tests the wrong things |
+| Tests important stuff | Tests the wrong things |
 | Sensitive to regressions | Poor at catching regressions |
-| Resilient to changes in implementation | Brittle |
+| Resilient to implementation changes | Brittle |
 | Clearly identifies the failure | Hard to interpret |
 | Easy to write | Difficult to write |
 | Easy to set up | Hard to set up |
@@ -121,7 +124,9 @@ There are three main types of unit test checks used in the Assert/Then part of t
 - *state-based testing* that verifies the public state of the system after an operation is completed ("what" checks);
 - *interaction-based testing*, where you use mocks to verify communications between the system under test and its collaborators ("how" checks).
 
-Functional testing is the easiest and cleanest. Interaction-based tests are the most brittle, as we often change how our code works, and interaction tests are typically tied to implementation. Interaction tests often rely on mocks, so when the code changes the mock often must be changed too. It's good practice to think about how you can avoid interaction tests and instead convert them to functional or state-based tests.
+Functional testing is the easiest and cleanest as it is stateless, while interaction-based tests are the most brittle, as we often change how our code works, and interaction tests are typically tied to implementation. Interaction tests often rely on mocks, so when the code changes the mock often must be changed too. It's good practice to think about how you can avoid interaction tests and instead convert them to functional or state-based tests.
+
+(Note: when we talk about *functional* here we are referring to the style of *functional programming*, not to "testing functionality").
 
 ## Test-Driven Development (TDD)
 
@@ -132,7 +137,7 @@ The typical workflow for TDD is:
 - Outer loop: write one or more failing acceptance tests for the feature that is about to be developed. These tests may take multiple checkins before they pass, and are excluded from CI until they are passing. Use stubs for dependencies that don’t yet exist; the stub will evolve as the desired API for that dependency emerges;
 - Inner loop: write one or more failing unit tests or integration tests for the class/method or other unit that is about to be written, then write the code to make that pass. All unit tests must be passing before checking in, and are run as part of CI.
 
-Reliable acceptance tests are often hard to write after the fact. Doing them upfront helps make sure we create testable software.
+Reliable acceptance tests are often hard to write after the fact. Doing them upfront helps make sure we create software that can support automated testing.
 
 Acceptance tests ideally exercise the system end-to-end without directly calling internal code or making assumptions about implementation - so they go through user interface, public API, web service, etc. Even better is if these tests include the process by which the system is built and deployed. So if possible, you want a check in/merge to master to:
 
@@ -147,15 +152,20 @@ TDD can be a useful practice because:
 
 In addition,  for the very first acceptance test, we must have implemented a whole automated build, deploy, and test cycle. This is a lot of work to do before we can even see our first test fail, but deploying and testing right from the start of a project forces the team to understand how their system fits into the world. It flushes out the “unknown unknown” technical and organizational risks so they can be addressed while there’s still time (see also )
 
-That said, TDD is time-consuming, can lead to an overabundance of tests that outlive their usefulness, and doesn't protect you from most of the pitfalls 
-outlined in this post. Persoanlly, I occasionally find it useful but more as an incremental/iterative design activity to clarify my thinking; I don't 
+That said, TDD is time-consuming, can lead to an overabundance of tests that outlive their usefulness, and doesn't by itself protect you from most of the pitfalls 
+outlined in this post. Personally, I occasionally find it useful but more as an incremental/iterative design activity to clarify my thinking; I don't 
 do it a lot and I usually clean up or get rid of a lot of the tests I produce afterwards.
 
 ## The Testing Schools - Classic vs "London"
 
-When mocking libraries first became popular, a school of thought arose in which it was considered good practice to mock all dependencies. The idea behind this is that this provides the best isolation of the SUT; any test failures are clearly going to be because something is wrong in the SUT and not because of a change in a dependency. This approach came out of a community of testers in London, and became known as the "London School" or "Mockist school".
+When mocking libraries first became popular, a school of thought arose in which it was considered good practice to mock all dependencies.
+It seemed like a good idea at the time; I was as guilty as anyone. Let's DI all the things!
 
-There is certainly value in this approach, but like a lot of good ideas, it can be taken to extremes and become counter-productive. It works best in conjunction with well-designed and decoupled, modular code; if the code is not clean, then following this testing approach can end up being obscurist. Unfortunately, this has become one of those tech "holy wars" where each side will tend to assume you use the other school's approach badly in order to argue why it's wrong. I do believe though that it is easier to fall into the “use badly” bucket when using Mockist approach:
+The idea behind this is that this provides the best isolation of the SUT; any test failures are clearly going to be because something is wrong in the SUT and not because of a change in a dependency.
+Apparently, this approach came out of a community of testers in London, and became known as the "London School" or "Mockist school", in contrast to how
+testing was being done before, which became known as the "Classic school".
+
+There is certainly value in this approach, but like a lot of good ideas, taken to the extreme it became counter-productive. It works best in conjunction with well-designed and decoupled, modular code; if the code is not clean, then following this testing approach can end up being obscurist. Unfortunately, this has become one of those tech "holy wars" where each side will tend to assume you use the other school's approach badly in order to argue why it's wrong. I do believe though that it is easier to fall into the “use badly” bucket when using Mockist approach:
 
 - extensive use of doubles that get out of sync with real implementation can have a significant maintenance cost;
 - over-reliance on mocking can mean more integration tests are needed to trust your code;
@@ -195,7 +205,8 @@ The rest of this post will dive into the other attributes of good tests with som
 
 ## Unit Tests should test Units of Behavior
 
-The main mistake I have seen made with unit tests has been thinking that unit tests should be testing "units of code" (whether that be functions, methods or classes). That is a slippery slope that is going to lead to a very brittle architecture and a lot of confusion and debate about what should and shouldn't be tested. If you wrote tests for every function you would be writing an order of magnitude more test code than product code, and the maintenance burden would be immense.
+The main mistake I have seen made with unit tests has been thinking that unit tests should be testing "units of code in the small", like individual functions
+or methods.That is a slippery slope that is going to lead to a very brittle architecture and a lot of confusion and debate about what should and shouldn't be tested. If you wrote tests for every function you would be writing an order of magnitude more test code than product code, and the maintenance burden would be immense.
 
 Instead, you want to test "units of behavior", and in particular, units of behavior as expressed in things like user stories or their first level breakdown into steps. What is a meaningful action that can be taken using the public API of a system? That is a good abstraction for thinking about a test. You want to avoid thinking about implementation (the "how"), and thinking instead about functionality (the "what").
 
@@ -218,7 +229,7 @@ If the tests are not fast, and can’t be made fast, be more selective about whe
 | Large | Unconstrained | As part of CI releases | 5% |
 
 
-## Tests should prioritize High-Value Code
+## Tests should Prioritize Complex and Important Code Paths
 
    We can classify code according to complexity (e.g. cyclomatic) and number of dependencies:
    
@@ -230,7 +241,7 @@ If the tests are not fast, and can’t be made fast, be more selective about whe
 - *Trivial code* may not need or be worth testing. It’s certainly low priority.
 - *Controllers/orchestrators* are best tested with integration and end-to-end tests, rather than creating complex test setups with lots of mocks.
 - *Domain model code and complex algorithms* are where we get the most bang for the buck with unit tests; focus on these first.
-- *[Big balls of mud](https://en.wikipedia.org/wiki/Big_ball_of_mud)* should be refactored/separated into controller code and domain code if possible, as a higher priority task than test coverage. 
+- *[Big balls of mud](https://en.wikipedia.org/wiki/Big_ball_of_mud)* should be refactored (or not created in the first place) before wasting time on writing extensive tests that will be brittle and obsolete once the code is cleaned up. An exception is if this is legacy code and tests are needed in order to do the refactoring in the first place.
 
 ## Tests should be Sensitive to Regressions
 

@@ -49,7 +49,19 @@ Nope.
 
 ![chat3](/img/sirius-chat3.png)
 
-Who comes up with these designs?
+That was their TWitter DM chat. I thought I'd go through the website, but that was no better:
+
+![chat3](/img/sirius-chat4.jpg)
+
+I _can_ actually sign in to their iOS app, but this is the result:
+
+![chat3](/img/sirius-ios.jpg)
+
+Supposedly I'm on a free trial, but I can't sign in to the website to use it,
+the iPhone app doesn't work, and I can't become a paid subscriber.  Who comes up with these designs?
+
+
+
 
 
 

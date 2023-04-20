@@ -1,8 +1,11 @@
-.. title: Siriusly? How not to design your website.
-.. date: 2023-04-20 10:39:00
-.. author: Graham Wheeler
-.. category: Usability
-.. comments: enabled
+---
+title: Siriusly?
+date: 2023-04-19 23:39:00
+author: Graham Wheeler
+category: Usability
+comments: enabled
+---
+
 
 My wife has SiriusXM in her car, and I really like their channel 53, SiriusXM Chill. I have struggled to find something similar; the closest 
 I have found is Chilltrax, which was apparently started by the same people who originally created the Sirius channel. Chilltrax is

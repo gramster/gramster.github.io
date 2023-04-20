@@ -134,7 +134,7 @@ post-container"><p>A couple of years ago we decided we wanted to make sure that 
 </span></span><span style=display:flex><span>        <span style=color:#ff79c6>path</span>: ~/.cache/pip
 </span></span><span style=display:flex><span>        <span style=color:#ff79c6>key</span>: ${{ runner.os }}-pip-${{ hashFiles(&#39;**/requirements.txt&#39;) }}
 </span></span><span style=display:flex><span>        <span style=color:#ff79c6>restore-keys</span>: |<span style=color:#f1fa8c>
-</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>          </span>          ${{ runner.os }}-pip-
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>          ${{ runner.os }}-pip-</span>          
 </span></span><span style=display:flex><span>    - <span style=color:#ff79c6>name</span>: Install reporter
 </span></span><span style=display:flex><span>      <span style=color:#ff79c6>run</span>:
 </span></span><span style=display:flex><span>        python -m pip install ghreport

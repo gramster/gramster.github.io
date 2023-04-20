@@ -21,7 +21,7 @@ on 'play'...
 
 ![The gateway to purgatory](/img/sirius-play.jpg)
 
-In stead of playing, this took me to a page where I was asked to create an account, with my email address and a password. Fine, I'm probably going 
+Instead of playing, this took me to a page where I was asked to create an account, with my email address and a password. Fine, I'm probably going 
 to have to do that anyway to subscribe, so I went ahead, and I ended up with the channel playing. So far so good.
 
 I then decided I wanted to do the subscribing. Clicking on that (or, it turns out, going through any number of other ways into trying to subscribe

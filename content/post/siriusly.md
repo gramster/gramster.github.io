@@ -60,10 +60,21 @@ I _can_ actually sign in to their iOS app, but this is the result:
 Supposedly I'm on a free trial, but I can't sign in to the website to use it,
 the iPhone app doesn't work, and I can't become a paid subscriber.  Who comes up with these designs?
 
+Update: the initial account was supposed to be a 24-hour free preview. So I figured I'd wait 24 hours and try again.
 
+The first thing that happened was that on the web, I once again got the 'create account'/'email already in use' problem. So I went to
+the iOS app. This time it launched, and said 'Your free preview has expired', and gave me a button labeled 'Delete Account'. Hallelujah!
+So I clicked it. I guess at this point nothing should surprise me anymore; here is the result:
 
+![chat3](/img/sirius-delete.jpg)
 
+I finally gave up and decided to use a secondary email account (I did try the '+' trick that works with gmail but Sirius would not accept 
+that as an account name; they gave no error or feedback but the 'Next' button on account creation would not advance). I went to the web and
+signed up and can now play music on the web. The iOS app, however, shows this:
 
+![chat3](/img/sirius-new.jpg)
+
+They deserve an Ignobel award or something for this experience. Unbelievable.
 
 
 

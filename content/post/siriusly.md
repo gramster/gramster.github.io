@@ -79,7 +79,14 @@ Upon trying to sign in to the iOS app with this account, however, I get this:
 ![chat3](/img/sirius-new.jpg)
 
 I get a similar result when trying to add Sirius to my Sonos. Considering the iOS app and Sonos are the only two places I would 
-use this, I am still 100% thwarted, but am now paying for the privilege.
+use this, I am still 100% thwarted, but am now paying for the privilege. Plus I am locked in; if I go to the web browser where I am
+signed in and able to play music, and try to do anything with my account through this menu:
+
+![chat3](/img/sirius-manage.jpg)
+
+no surprise, I once again get taken to a login screen and once again get told "The username and/or password you entered does not match our records.".
+I bet that won't stop them billing my credit card.
+
 
 They deserve an Ignobel award or something for this experience. Unbelievable.
 

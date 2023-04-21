@@ -70,7 +70,11 @@ So I clicked it. I guess at this point nothing should surprise me anymore; here 
 
 I finally gave up and decided to use a secondary email account (I did try the '+' trick that works with gmail but Sirius would not accept 
 that as an account name; they gave no error or feedback but the 'Next' button on account creation would not advance). I went to the web and
-signed up and can now play music on the web. And I got an email welcoming me and inviting me to download the iOS app:
+signed up with my credit card:
+
+![chat3](/img/sirius-paid.jpg)
+
+I can now play music on the web, and I got an email welcoming me and inviting me to download the iOS app:
 
 ![chat3](/img/sirius-trial.jpg)
 

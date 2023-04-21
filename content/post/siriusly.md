@@ -70,9 +70,16 @@ So I clicked it. I guess at this point nothing should surprise me anymore; here 
 
 I finally gave up and decided to use a secondary email account (I did try the '+' trick that works with gmail but Sirius would not accept 
 that as an account name; they gave no error or feedback but the 'Next' button on account creation would not advance). I went to the web and
-signed up and can now play music on the web. The iOS app, however, shows this:
+signed up and can now play music on the web. And I got an email welcoming me and inviting me to download the iOS app:
+
+![chat3](/img/sirius-trial.jpg)
+
+Upon trying to sign in to the iOS app with this account, however, I get this:
 
 ![chat3](/img/sirius-new.jpg)
+
+I get a similar result when trying to add Sirius to my Sonos. Considering the iOS app and Sonos are the only two places I would 
+use this, I am still 100% thwarted, but am now paying for the privilege.
 
 They deserve an Ignobel award or something for this experience. Unbelievable.
 
